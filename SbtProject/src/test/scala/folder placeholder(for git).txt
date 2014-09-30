@@ -1,1 +1,0 @@
-placeholder file to ensure empty folder tracked by git. Can be removed as soon as any other file present in the folder.
