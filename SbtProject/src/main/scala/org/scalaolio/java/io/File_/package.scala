@@ -18,266 +18,190 @@ package org.scalaolio.java.io
 
 import java.io._
 
-import scala.util.Try
-
-import org.scalaolio.java.lang.AutoCloseable_._
-import org.scalaolio.java.Io_
-import org.scalaolio.java.Io_._
 import org.scalaolio.util.Try_.CompletedNoException
+
+import scala.util.{Failure, Try}
+
+import org.scalaolio.java.Io_._
+import org.scalaolio.java.lang.AutoCloseable_.{ManagedAutoCloseableNested, ManagedAutoCloseable, ManagedAutoCloseableFactoryBase}
 
 /** Encapsulate with idiomatic Scala all the Java null and checked
  *  exception prone methods in Java.
  */
 package object File_ {
-  /** Byte based input/output methods
+
+  /**
+   *
    */
-  object ArrayByteBased {
-    /** Using ARM, pulls the content through an BufferedInputStream out
-     *  of an InputStream which is generated from a File which is
-     *  instantiated from a path and file String.
+  trait FactoryFileReaderFromFile
+    extends ManagedAutoCloseableFactoryBase[File, FileReader] {
+    /**
      *
-     *  @param fileAsString File based resource specified as a String
-     *  @return             Either Success(Array[Byte]) which holds the
-     *                      retrieved content, or Failure(Exception)
-     *                      where the Exception was captured by a
-     *                      try/catch block
+     *  @return
      */
-    def fromInputStream(fileAsString: String): Try[Array[Byte]] =
-      Try(new File(fileAsString)).flatMap(
-        (file) => fromInputStream(file)
-      )
-
-    /** Using ARM, pushes the content through an BufferedOutputStream
-     *  into an OutputStream which is generated from a File which is
-     *  instantiated from a path and file String.
-     *
-     *  @param fileAsString File based resource specified as a String
-     *  @param content      Information to persist
-     *  @return             Either
-     *                      Success(completedNoExceptionSingleton) or
-     *                      Failure(Exception) where the Exception was
-     *                      captured by a try/catch block
-     */
-    def toOutputStream(
-        fileAsString: String
-      , content: Array[Byte]
-    ): Try[CompletedNoException] =
-      Try(new File(fileAsString)).flatMap(
-        (file) => toOutputStream(file, content)
-      )
-
-    /** Using ARM, pulls the content through an BufferedInputStream out
-     *  of an InputStream which is generated from a File.
-     *
-     *  @param file       File based resource
-     *  @param bufferSize Optionally override the default buffer size
-     *  @return           Either Success(Array[Byte]) which holds the
-     *                    retrieved content, or Failure(Exception)
-     *                    where the Exception was captured by a
-     *                    try/catch block
-     */
-    def fromInputStream(
-        file: File
-      , bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): Try[Array[Byte]] =
-      operate[FileInputStream, Array[Byte]](
-          () => new FileInputStream(file)
-        , (fileInputStream) =>
-            Io_.ArrayByteBased.fromInputStream(
-                fileInputStream
-              , bufferSize
-            )
-      )
-
-    /** Using ARM, pushes the content through an BufferedOutputStream
-     *  into an OutputStream which is generated from a File.
-     *
-     *  @param file       File based resource
-     *  @param content    Information to persist
-     *  @param bufferSize Optionally override the default buffer size
-     *  @return           Either
-     *                    Success(completedNoExceptionSingleton) or
-     *                    Failure(Exception) where the Exception was
-     *                    captured by a try/catch block
-     */
-    def toOutputStream(
-        file: File
-      , content: Array[Byte]
-      , bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): Try[CompletedNoException] =
-      operate[FileOutputStream, CompletedNoException](
-          () => new FileOutputStream(file)
-        , (fileOutputStream) =>
-            Io_.ArrayByteBased.toOutputStream(
-                fileOutputStream
-              , content
-              , bufferSize
-            )
-      )
+    def autoCloseable: (File) => Try[FileReader] =
+      (file) =>
+        Try(new FileReader(file))
   }
 
-  /** String based input/output methods
+  /**
+   *
    */
-  object StringBased {
-    /** Using ARM, pulls the content through a BufferedReader out of a
-     *  Reader which is generated from a File which is instantiated
-     *  from a path and file String.
+  trait FactoryFileReaderFromFileDescriptor
+    extends ManagedAutoCloseableFactoryBase[FileDescriptor, FileReader] {
+    /**
      *
-     *  @param fileAsString File based resource specified as a String
-     *  @return             Either Success(String) which holds the
-     *                      retrieved content, or Failure(Exception)
-     *                      where the Exception was captured by a
-     *                      try/catch block
+     *  @return
      */
-    def fromReader(fileAsString: String): Try[String] =
-      Try(new File(fileAsString)).flatMap(
-        (file) => fromReader(file)
-      )
-
-    /** Using ARM, pushes the content as a String through BufferedWriter
-     *  into a Writer which is generated from a File which is
-     *  instantiated from a path and file String.
-     *
-     *  @param fileAsString File based resource specified as a String
-     *  @param content      Information to persist
-     *  @return             Either
-     *                      Success(completedNoExceptionSingleton) or
-     *                      Failure(Exception) where the Exception was
-     *                      captured by a try/catch block
-     */
-    def toPrintWriter(
-        fileAsString: String
-      , content: String
-    ): Try[CompletedNoException] =
-      Try(new File(fileAsString)).flatMap(
-        (file) => toPrintWriter(file, content)
-      )
-
-    /** Using ARM, pulls the content through a BufferedReader out of a
-     *  Reader which is generated from a File.
-     *
-     *  @param file       File based resource
-     *  @param bufferSize Optionally override the default buffer size
-     *  @return           Either Success(String) which holds the
-     *                    retrieved content, or Failure(Exception)
-     *                    where the Exception was captured by a
-     *                    try/catch block
-     */
-    def fromReader(
-        file: File
-      , bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): Try[String] =
-      operate[FileReader, String](
-          () => new FileReader(file)
-        , (fileReader) =>
-            Io_.StringBased.fromReader(fileReader, bufferSize)
-      )
-
-    /** Using ARM, pushes the content as a String through BufferedWriter
-     *  into a Writer which is generated from a File.
-     *
-     *  @param file       File based resource
-     *  @param content    Information to persist
-     *  @param bufferSize Optionally override the default buffer size
-     *  @return           Either
-     *                    Success(completedNoExceptionSingleton) or
-     *                    Failure(Exception) where the Exception was
-     *                    captured by a try/catch block
-     */
-    def toPrintWriter(
-        file: File
-      , content: String
-      , bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): Try[CompletedNoException] =
-      operate[PrintWriter, CompletedNoException](
-          () => new PrintWriter(file)
-        , (printWriter) =>
-          Io_.StringBased.toWriter(printWriter, content, bufferSize)
-      )
+    def autoCloseable: (FileDescriptor) => Try[FileReader] =
+      (fileDescriptor) =>
+        Try(new FileReader(fileDescriptor))
   }
 
-  /** List[String] based input/output methods
+  /**
+   *
    */
-  object ListStringBased {
-    /** Using ARM, pulls the content through a BufferedReader out of a
-     *  Reader which is generated from a File which is instantiated
-     *  from a path and file String.
+  trait FactoryFileWriterFromFile
+    extends ManagedAutoCloseableFactoryBase[File, FileWriter] {
+    /**
      *
-     *  @param fileAsString File based resource specified as a String
-     *  @return             Either Success(List[String]) which holds
-     *                      the retrieved content, or
-     *                      Failure(Exception) where the Exception was
-     *                      captured by a try/catch block
+     *  @return
      */
-    def fromReader(fileAsString: String): Try[List[String]] =
-      Try(new File(fileAsString)).flatMap(
-        (file) => fromReader(file)
-      )
+    def append: Boolean
 
-    /** Using ARM, pushes the content as a String through BufferedWriter
-     *  into a Writer which is generated from a File which is
-     *  instantiated from a path and file String.
+    /**
      *
-     *  @param fileAsString File based resource specified as a String
-     *  @param content      Information to persist
-     *  @return             Either
-     *                      Success(completedNoExceptionSingleton) or
-     *                      Failure(Exception) where the Exception was
-     *                      captured by a try/catch block
+     * @return
      */
-    def toPrintWriter(
-        fileAsString: String
-      , content: List[String]
-    ): Try[CompletedNoException] =
-      Try(new File(fileAsString)).flatMap(
-        (file) => toPrintWriter(file, content)
-      )
+    def autoCloseable: (File) => Try[FileWriter] =
+      (file) =>
+        Try(new FileWriter(file))
+  }
 
-    /** Using ARM, pulls the content through a BufferedReader out of a
-     *  Reader which is generated from a File.
+  /**
+   *
+   */
+  trait FactoryFileWriterFromFileDescriptor
+    extends ManagedAutoCloseableFactoryBase[FileDescriptor, FileWriter] {
+    /**
      *
-     *  @param file       File based resource
-     *  @param bufferSize Optionally override the default buffer size
-     *  @return           Either Success(List[String]) which holds
-     *                    the retrieved content, or
-     *                    Failure(Exception) where the Exception was
-     *                    captured by a try/catch block
+     *  @return
      */
-    def fromReader(
-        file: File
-      , bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): Try[List[String]] =
-      operate[FileReader, List[String]](
-          () => new FileReader(file)
-        , (fileReader) =>
-            Io_.ListStringBased.fromReader(fileReader, bufferSize)
-      )
+    def autoCloseable: (FileDescriptor) => Try[FileWriter] =
+      (fileDescriptor) =>
+        Try(new FileWriter(fileDescriptor))
+  }
 
-    /** Using ARM, pushes the content as a String through BufferedWriter
-     *  into a Writer which is generated from a File.
-     *
-     *  @param file       File based resource
-     *  @param content    Information to persist
-     *  @param bufferSize Optionally override the default buffer size
-     *  @return           Either
-     *                    Success(completedNoExceptionSingleton) or
-     *                    Failure(Exception) where the Exception was
-     *                    captured by a try/catch block
-     */
-    def toPrintWriter(
-        file: File
-      , content: List[String]
-      , bufferSize: Int = DEFAULT_BUFFER_SIZE
-    ): Try[CompletedNoException] =
-      operate[PrintWriter, CompletedNoException](
-          () => new PrintWriter(file)
-        , (printWriter) =>
-            Io_.ListStringBased.toWriter(
-                printWriter
-              , content
-              , bufferSize
-            )
-      )
+  /**
+   *
+   *  @param managedAutoCloseable
+   *  @tparam T  Type implementing the
+   *             java.lang.AutoCloseable interface
+   *  @tparam I  Content to pull in
+   */
+  class FileReaderFromFileNested[T <: Reader, I] (
+      val managedAutoCloseable:
+        ManagedAutoCloseable[FileReader, T, Nothing, I]
+  ) extends ManagedAutoCloseableNested[File, FileReader, T, Nothing, I]
+    with FactoryFileReaderFromFile
+
+  /**
+   *
+   *  @param managedAutoCloseable
+   *  @tparam T  Type implementing the
+   *             java.lang.AutoCloseable interface
+   *  @tparam I  Content to pull in
+   */
+  class FileReaderFromFileDescriptorNested[T <: Reader, I] (
+      val managedAutoCloseable:
+        ManagedAutoCloseable[FileReader, T, Nothing, I]
+  ) extends ManagedAutoCloseableNested[FileDescriptor, FileReader, T, Nothing, I]
+    with FactoryFileReaderFromFileDescriptor
+
+  /**
+   *
+   *  @param managedAutoCloseable
+   *  @param append
+   *  @tparam T  Type implementing the
+   *             java.lang.AutoCloseable interface
+   *  @tparam O  Content to push out
+   */
+  class FileWriterFromFileNested[T <: Writer, O] (
+      val managedAutoCloseable:
+        ManagedAutoCloseable[FileWriter, T, O, CompletedNoException]
+    , val append: Boolean = false
+  ) extends ManagedAutoCloseableNested[File, FileWriter, T, O, CompletedNoException]
+    with FactoryFileWriterFromFile
+
+  /**
+   *
+   *  @param managedAutoCloseable
+   *  @tparam T  Type implementing the
+   *             java.lang.AutoCloseable interface
+   *  @tparam O  Content to push out
+   */
+  class FileWriterFromFileDescriptorNested[T <: Writer, O] (
+      val managedAutoCloseable:
+        ManagedAutoCloseable[FileWriter, T, O, CompletedNoException]
+  ) extends ManagedAutoCloseableNested[FileDescriptor, FileWriter, T, O, CompletedNoException]
+    with FactoryFileWriterFromFileDescriptor
+
+  /**
+   *
+   *  @param source
+   *  @param bufferSize
+   *  @return
+   */
+  def pullString(
+      source: Any
+    , bufferSize: Int = DEFAULT_BUFFER_SIZE
+  ): Try[String] = {
+    val bufferedReaderString =
+      new BufferedReaderString[FileReader](bufferSize)
+    source match {
+      case file: File =>
+        (new FileReaderFromFileNested(bufferedReaderString))(file)
+      case string: String =>
+        Try(new File(string)).flatMap(
+          (file) =>
+            (new FileReaderFromFileNested(bufferedReaderString))(file)
+        )
+      case fileDescriptor: FileDescriptor =>
+        (new FileReaderFromFileDescriptorNested(bufferedReaderString))(fileDescriptor)
+      case None =>
+        Failure(new IllegalArgumentException(s"source [$source] case is not defined"))
+    }
+  }
+
+  /**
+   *
+   *  @param source
+   *  @param content
+   *  @param append
+   *  @param bufferSize
+   *  @return
+   */
+  def pushString(
+      source: Any
+    , content: String
+    , append: Boolean = false
+    , bufferSize: Int = DEFAULT_BUFFER_SIZE
+  ): Try[CompletedNoException] = {
+    val bufferedWriterString =
+      new BufferedWriterString[FileWriter](bufferSize)
+    source match {
+      case file: File =>
+        (new FileWriterFromFileNested(bufferedWriterString, append))(file, Option(content))
+      case string: String =>
+        Try(new File(string)).flatMap(
+          (file) =>
+            (new FileWriterFromFileNested(bufferedWriterString, append))(file, Option(content))
+        )
+      case fileDescriptor: FileDescriptor =>
+        (new FileWriterFromFileDescriptorNested(bufferedWriterString))(fileDescriptor)
+      case None =>
+        Failure(new IllegalArgumentException(s"source [$source] case is not defined"))
+    }
   }
 }
 /*

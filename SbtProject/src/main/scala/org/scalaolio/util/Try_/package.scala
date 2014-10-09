@@ -6,7 +6,8 @@
 **   Name:      package.scala                                           **
 **                                                                      **
 ** Description:                                                         **
-**  Enables Try to be used if return failure only mutation scenarios    **
+**  Enables Try to be used even when the method does not return         **
+**  anything in the event of success (i.e. is a mutator)                **
 **                                                                      **
 ** License:   GPLv3 license (see end of file for details)               **
 ** Ownership: Copyright (C) 2014 by Jim O'Flaherty                      **
@@ -17,13 +18,14 @@ package org.scalaolio.util
  *  methods. Used extensively in the java.io related packages.
  */
 package object Try_ {
-  /** Placeholder type when a mutator method does not
-   *  intend to return anything but failures.
+  /** Placeholder type for when a mutator method does not intend to
+   *  return anything with a Success, but needs to be able to return a
+   *  Failure with an unthrown Exception.
    */
   sealed case class CompletedNoException private[Try_] ()
 
-  /** Placeholder instance when a mutator method needs to return that
-   *  nothing failed.
+  /** Placeholder instance for when a mutator method needs to indicate
+   *  success via Success(completedNoExceptionSingleton)
    */
   val completedNoExceptionSingleton = new CompletedNoException()
 }

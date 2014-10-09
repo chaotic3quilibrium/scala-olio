@@ -15,18 +15,17 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.java.lang
 
-/** This package object serves to ease idiomatic Scala interactions
- *  with java.lang.Class.
+/** Serves to ease idiomatic Scala interactions with java.lang.Class.
  */
 package object Class_ {
 
-  /** This companion object/class pair Name is from the case class
-   *  pattern template encapsulating the 'String' based name methods
-   *  of java.lang.Class. Due to the way the Scala compiler generate
-   *  JVM classes, the getSimpleName method of getClass can throw an
-   *  exception when called on an Scala object is nested within another
-   *  Scala object. This implementation falls back to using other more
-   *  reliable methods of Class.
+  /** The following companion object/class pair Name is from the case
+   *  class pattern template encapsulating the 'String' based name
+   *  methods of java.lang.Class. Due to the way the Scala compiler
+   *  generate JVM classes, the getSimpleName method of getClass can
+   *  throw an exception when called on an Scala object is nested
+   *  within another Scala object. This implementation falls back
+   *  to using other more reliable methods of Class.
    */
   object Name {
     override def toString = apply(this.getClass).simpleName
@@ -36,7 +35,8 @@ package object Class_ {
     @volatile
     private var cache: Map[Class[_], Name] = Map()
 
-    /** Holds "special case" identifier for Java array
+    /** Defines "special case" constant for Java array (replaces the
+     *  "[I" form)
      */
     private val JAVA_ARRAY: List[String] = List("Array")
 
@@ -106,8 +106,7 @@ package object Class_ {
       }
     }
 
-    /** Part of the case class pattern template providing the
-     *  implementation for the final class 'Name'.
+    /** Private implementation class of the case class pattern.
      */
     sealed private[Name] abstract case class Impl(
         source: Class[_]
@@ -116,7 +115,7 @@ package object Class_ {
     )
   }
 
-  /** The final class of the case class pattern template which provides
+  /** Final class of the case class pattern template which provides
    *  idiomatic Scala access to java.lang.Class. The simpleName method
    *  is guaranteed to never throw an exception, unlike its Java
    *  counterpart, java.lang.Class.getSimpleName.
@@ -147,26 +146,25 @@ package object Class_ {
     lazy val toStringUnmasked: String =
       Name.toString + super.toString.dropWhile(_ != '(')
 
-    /** Modified to override Impl.toString implementation
+    /** Overrides Impl.toString implementation
      *
      *  @return toStringUnmasked
      */
     override def toString: String =
       toStringUnmasked
 
-    /** val indicating whether the source is a Java array.
+    /** Indicates whether the source is a Java array.
      */
     val isJavaArray: Boolean = objects == Name.JAVA_ARRAY
 
-    /** val containing String value of class/object/trait without
+    /** Contains String value of class/object/trait without
      *  generating an exception from java.lang.Class.getSimpleName
      *  (includes working correctly within Scala Worksheet).
      */
     val simpleName: String = objects.reverse.head
 
-    /** val indicating whether the source is a Scala
-     *  object (true) or not (false - either a Java class or Scala
-     *  class/trait).
+    /** Indicates whether the source is a Scala object (true) or not
+     *  (false  - either a Java class or Scala class/trait).
      */
     val isScalaObject: Boolean = source.getName.endsWith("$")
 
@@ -184,8 +182,8 @@ package object Class_ {
       else
         None //special case for Java's array
 
-    /** val indicating whether the parent of this is a package (true)
-     *  or a Scala class/object/trait (false)
+    /** Indicates whether the parent of this is a package (true) or a
+     *  Scala class/object/trait (false)
      */
     val isParentAPackage: Boolean =
       rawNameSpace match {
@@ -195,8 +193,8 @@ package object Class_ {
           true
       }
 
-    /** val contains Some(String) where String is the fully specified
-     *  name space for the Java class or Scala class/object/trait with
+    /** Contains Some(String) where String is the fully specified name
+     *  space for the Java class or Scala class/object/trait with
      *  simpleName removed
      */
     val nameSpace: Option[String] =
@@ -208,8 +206,7 @@ package object Class_ {
       }
   }
 
-  /** Implicit method to enable simple conversion from java.lang.Class
-   *  to Name
+  /** Enable simples conversion from java.lang.Class to Name
    *
    *  @param source the java.lang.Class which to be Name encapsulated
    *  @return       the cached Name instance
