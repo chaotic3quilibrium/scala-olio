@@ -23,5 +23,5 @@ val converter: ResultSetReadOnlyRow => Try[AliMain] =
       )
     )
   }
-val sql = "SELECT id, ali_value FROM ali_main "
+val sql = "SELECT id, ali_value FROM ali_main"
 val list = Sql.select(() => databaseAccessUrl.getConnection, sql, converter)
