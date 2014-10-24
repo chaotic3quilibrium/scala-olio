@@ -1,5 +1,4 @@
-import org.scalaolio.java.Sql
-import org.scalaolio.java.Sql.{ResultSetReadOnlyRow, DatabaseAccessUrl}
+import org.scalaolio.java.Sql.{ResultSetReadOnlyRow, DatabaseAccessUrl, Select}
 import scala.util.{Try, Success}
 val q = 1
 //
@@ -11,17 +10,24 @@ val databaseAccessUrl =
     , "sa"
   )
 case class AliMain(
-    val id: Int
-  , val aliValue: String
+    id: Int
+  , aliValue: String
 )
-val converter: ResultSetReadOnlyRow => Try[AliMain] =
+val converter: ResultSetReadOnlyRow => Try[Option[AliMain]] =
   (resultSetRow) => {
     Success(
-      AliMain(
-          resultSetRow.getInt(1)
-        , resultSetRow.getString(2)
+      Some(
+        AliMain(
+            resultSetRow.getInt(1)
+          , resultSetRow.getString(2)
+        )
       )
     )
   }
 val sql = "SELECT id, ali_value FROM ali_main"
-val list = Sql.select(() => databaseAccessUrl.getConnection, sql, converter)
+val select =
+  new Select[AliMain](
+      databaseAccessUrl
+    , sql
+    , converter
+  ).content

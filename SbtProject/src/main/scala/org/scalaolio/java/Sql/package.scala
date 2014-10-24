@@ -18,15 +18,31 @@ import java.sql.{Date, Time, Timestamp}
 import javax.naming.InitialContext
 import javax.sql.DataSource
 
+import grizzled.slf4j.Logger
 import org.joda.time.{DateTime, DateTimeZone}
+import org.scalaolio.util.Try_.CompletedNoException
 
 import scala.util.{Failure, Success, Try}
 
-//TODO: must completely rework to put Try in at much lower levels (with better error messages and logging options)
+//TODO: remove use of var for tracking java.lang.AutoCloseable instances - move ASAP to using AutoCloseable_
 package object Sql {
+  private val LOGGER = Logger(getClass.getName)
+
   trait DatabaseAccess {
     def getConnection: Try[Connection]
-//    def suppressSQLExceptionStackTrace: Boolean
+    def suppressSQLExceptionLogging: Boolean
+  }
+
+  def errorOut[T](message: String, suppressSQLExceptionLogging: Boolean, throwable: Option[Throwable] = None): Failure[T] = {
+    if (!suppressSQLExceptionLogging) LOGGER.error(message)
+    Failure(
+      throwable match {
+        case Some(throwableGet) =>
+          new IllegalStateException(message, throwableGet)
+        case None =>
+          new IllegalStateException(message)
+      }
+    )
   }
 
   class DatabaseAccessUrl(
@@ -34,21 +50,63 @@ package object Sql {
     , val connectionUrl: String  //ex: "jdbc:h2:tcp://localhost/~/test"
     , val username: String = ""  //ex: "sa"
     , val password: String = ""  //ex: "sa"
-//    , val suppressSQLExceptionStackTrace: Boolean = false
+    , val suppressSQLExceptionLogging: Boolean = false
   ) extends DatabaseAccess {
     def getConnection: Try[Connection] =
-      Try {
-        Class.forName(driverName)
-        DriverManager.getConnection(connectionUrl, username, password)
+      Try(Class.forName(driverName)) match {
+        case Success(_) =>
+          Try(DriverManager.getConnection(connectionUrl, username, password)) match {
+            case Success(connection) =>
+              Success(connection)
+            case Failure(throwable) =>
+              errorOut[Connection](
+                  s"DriverManager.getConnection($connectionUrl, $username, PASSWORD_SUPPRESSED) failed - original exception: ${throwable.getMessage}"
+                , suppressSQLExceptionLogging
+                , Some(throwable)
+              )
+          }
+        case Failure(throwable) =>
+          errorOut[Connection](
+              s"Class.forName($driverName) failed - original exception: ${throwable.getMessage}"
+            , suppressSQLExceptionLogging
+            , Some(throwable)
+          )
       }
   }
 
   class DatabaseAccessUrlJndi(
       val name: String
-//    , val suppressSQLExceptionStackTrace: Boolean = false
+    , val suppressSQLExceptionLogging: Boolean = false
   ) extends DatabaseAccess {
     def getConnection: Try[Connection] = {
-      Try(new InitialContext().lookup(name).asInstanceOf[DataSource].getConnection)
+      Try(new InitialContext()) match {
+        case Success(initialContext) =>
+          Try(initialContext.lookup(name)) match {
+            case Success(anyRef) =>
+              Try(anyRef.asInstanceOf[DataSource]) match {
+                case Success(dataSource) =>
+                  Try(dataSource.getConnection)
+                case Failure(throwable) =>
+                  errorOut[Connection](
+                      s"dataSource.getConnection failed for jndiName [$name] - original exception: ${throwable.getMessage}"
+                    , suppressSQLExceptionLogging
+                    , Some(throwable)
+                  )
+              }
+            case Failure(throwable) =>
+              errorOut[Connection](
+                  s"initialContext.lookup() failed for jndiName [$name] - original exception: ${throwable.getMessage}"
+                , suppressSQLExceptionLogging
+                , Some(throwable)
+              )
+          }
+        case Failure(throwable) =>
+          errorOut[Connection](
+              s"initialContext failed for jndiName [$name] - original exception: ${throwable.getMessage}"
+            , suppressSQLExceptionLogging
+            , Some(throwable)
+          )
+      }
     }
   }
 
@@ -85,21 +143,57 @@ package object Sql {
     def getTime(columnLabel: String): Time = resultSet.getTime(columnLabel)
     def getTimestamp(index: Int): Timestamp = resultSet.getTimestamp(index)
     def getTimestamp(columnLabel: String): Timestamp = resultSet.getTimestamp(columnLabel)
+
+    case class RowContent(index: Int, name: String, value: String) {
+      def toStringRaw: String = s"i=$index;n=$name;v=$value"
+    }
+
+    lazy val rowContents: List[RowContent] = {
+      val metaData = resultSet.getMetaData
+      ( for {
+          index <- 1 to metaData.getColumnCount
+          name = metaData.getColumnName(index)
+          value = Option(getString(index)).getOrElse("<null>")
+        } yield RowContent(index, name, value)
+      ).toList
+    }
+
+    lazy val rowContentByIndex: Map[Int, RowContent] =
+      rowContents.map(x => (x.index, x)).toMap
+
+    lazy val rowContentByName: Map[String, RowContent] =
+      rowContents.map(x => (x.name, x)).toMap
   }
 
-  private def getTs[T](resultSet: ResultSet, convertToT: ResultSetReadOnlyRow => Try[T], abort: () => Boolean): Try[List[T]] = {
+  private def convertToTsDefault[T](resultSet: ResultSet, convertToT: ResultSetReadOnlyRow => Try[Option[T]], abort: () => Boolean, suppressSQLExceptionLogging: Boolean): Try[List[T]] = {
     def processRow(accumulator: List[T]): Try[List[T]] = {
       if (!abort.apply) {
-        if (resultSet.next())
-          convertToT(new ResultSetReadOnlyRow(resultSet)) match {
-            case Success(t) => processRow(t :: accumulator)
-            case Failure(e) => Failure(e)
+        if (resultSet.next()) {
+          val resultSetReadOnlyRow = new ResultSetReadOnlyRow(resultSet)
+          convertToT(resultSetReadOnlyRow) match {
+            case Success(optionT) =>
+              optionT match {
+                case Some(t) => processRow(t :: accumulator)
+                case None => processRow(accumulator)
+              }
+            case Failure(throwable) =>
+              val rowContents: String =
+                resultSetReadOnlyRow.rowContents.map(_.toStringRaw).mkString("|")
+              errorOut[List[T]](
+                  s"convertToT failed on the row's contents [$rowContents] - original exception: ${throwable.getMessage}"
+                , suppressSQLExceptionLogging
+                , Some(throwable)
+              )
           }
+        }
         else
           Success(accumulator)
       }
       else
-        Failure(new InterruptedException("aborted during harvesting results"))
+        errorOut[List[T]](
+            "aborted during harvesting results"
+          , suppressSQLExceptionLogging
+        )
     }
     if (!abort.apply) {
       processRow(Nil).flatMap(
@@ -107,40 +201,90 @@ package object Sql {
       )
     }
     else
-      Failure(new InterruptedException("aborted prior to harvesting results"))
+      errorOut[List[T]](
+          "aborted prior to harvesting results"
+        , suppressSQLExceptionLogging
+      )
   }
 
-  def select[T](
-      connection: () => Try[Connection]
-    , sql: String
-    , convertToT: ResultSetReadOnlyRow => Try[T]
-    , statement: Connection => Try[Statement] = connection => Try(connection.createStatement)
-    , resultSet: (Statement, String) => Try[ResultSet] = (statement, sql) => Try(statement.executeQuery(sql))
-    , convertToTs: (ResultSet, ResultSetReadOnlyRow => Try[T], () => Boolean) => Try[List[T]] = (x, y: ResultSetReadOnlyRow => Try[T], z) => getTs[T](x, y, z)
-    , abort: () => Boolean = () => false
-  ): Try[List[T]] = {
-    var autoCloseables: List[AutoCloseable] = Nil
-    try {
-      connection().flatMap(
+  trait Process[R, V] {
+    def databaseAccess: DatabaseAccess
+    def statement: Connection => Try[Statement]
+    def result: (Statement, String) => Try[R]
+    def abort: () => Boolean
+
+    protected def specialization(statement: Statement): Try[V]
+    protected var autoCloseables: List[AutoCloseable] = Nil //TODO: Replace with java.lang.AutoCloseable_'s ARM system ASAP
+
+    private def opens(): Try[Statement] =
+      databaseAccess.getConnection.flatMap(
         connection => {
           autoCloseables = connection :: autoCloseables
           statement(connection).flatMap(
             statement => {
               autoCloseables = statement :: autoCloseables
-              resultSet(statement, sql).flatMap(
-                resultSet => {
-                  autoCloseables = resultSet :: autoCloseables
-                  convertToTs(resultSet, convertToT, abort)
-                }
-              )
+              Success(statement)
             }
           )
         }
       )
+
+    private def closes(): Unit = {
+      autoCloseables.foreach(
+        autoCloseable => {
+          Try(autoCloseable.close()) match {
+            case Success(_) =>
+            case Failure(throwable) =>
+              errorOut[CompletedNoException](
+                  s"close failed - original exception: ${throwable.getMessage}"
+                , databaseAccess.suppressSQLExceptionLogging
+                , Some(throwable)
+              )
+          }
+        }
+      )
     }
-    finally {
-      autoCloseables.foreach(a => Try(a.close()))
+
+    val content: Try[V] = {
+      try{
+        opens().flatMap(
+          statement =>
+            specialization(statement)
+        )
+      }
+      finally {
+        closes()
+      }
     }
+  }
+
+  final class Select[T](
+      val databaseAccess: DatabaseAccess
+    , val sql: String
+    , val convertToT: ResultSetReadOnlyRow => Try[Option[T]]
+    , val statement: Connection => Try[Statement] = connection => Try(connection.createStatement)
+    , val result: (Statement, String) => Try[ResultSet] = (statement, sql) => Try(statement.executeQuery(sql))
+    , val abort: () => Boolean = () => false
+  ) extends Process[ResultSet, List[T]] {
+    override protected def specialization(statement: Statement): Try[List[T]] = {
+      result(statement, sql).flatMap(
+        resultSet => {
+          autoCloseables = resultSet :: autoCloseables
+          convertToTsDefault(resultSet, convertToT, abort, databaseAccess.suppressSQLExceptionLogging)
+        }
+      )
+    }
+  }
+
+  final class Update(
+      val databaseAccess: DatabaseAccess
+    , val sql: String
+    , val statement: Connection => Try[Statement] = connection => Try(connection.createStatement)
+    , val result: (Statement, String) => Try[Int] = (statement, sql) => Try(statement.executeUpdate(sql))
+    , val abort: () => Boolean = () => false
+  ) extends Process[Int, Int] {
+    override protected def specialization(statement: Statement): Try[Int] =
+      result(statement, sql)
   }
 }
 /*
