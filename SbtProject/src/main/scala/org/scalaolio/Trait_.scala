@@ -22,6 +22,8 @@ object Trait_ {
       Some(internal.sealedDescendants.map(_.asInstanceOf[Symbol]) - symbol)
     else None
   }
+
+  //TODO: must research doing the sealed trait work via regular class definitions, avoiding 2.10+ reflection mechanism
 }
 /*
 This Scala file is free software: you can redistribute it and/or

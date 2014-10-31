@@ -169,7 +169,7 @@ package object File_ {
       case fileDescriptor: FileDescriptor =>
         (new FileReaderFromFileDescriptorNested(bufferedReaderString))(fileDescriptor)
       case None =>
-        Failure(new IllegalArgumentException(s"source [$source] case is not defined"))
+        Failure(new IllegalArgumentException(s"source [${source.getClass.getName}] case is not handled"))
     }
   }
 
@@ -200,7 +200,7 @@ package object File_ {
       case fileDescriptor: FileDescriptor =>
         (new FileWriterFromFileDescriptorNested(bufferedWriterString))(fileDescriptor)
       case None =>
-        Failure(new IllegalArgumentException(s"source [$source] case is not defined"))
+        Failure(new IllegalArgumentException(s"source case [${source.getClass.getName}] is not handled"))
     }
   }
 }

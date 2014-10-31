@@ -111,7 +111,7 @@ package object Sql {
   }
 
   //immutable interface to the current row in resultSet
-  class ResultSetReadOnlyRow(private val resultSet: ResultSet) {
+  class ResultSetRowReadOnly(private val resultSet: ResultSet) {
     //primitives
     def getBoolean(index: Int): Boolean = resultSet.getBoolean(index)
     def getBoolean(columnLabel: String): Boolean = resultSet.getBoolean(columnLabel)
@@ -165,11 +165,11 @@ package object Sql {
       rowContents.map(x => (x.name, x)).toMap
   }
 
-  private def convertToTsDefault[T](resultSet: ResultSet, convertToT: ResultSetReadOnlyRow => Try[Option[T]], abort: () => Boolean, suppressSQLExceptionLogging: Boolean): Try[List[T]] = {
+  private def convertToTsDefault[T](resultSet: ResultSet, convertToT: ResultSetRowReadOnly => Try[Option[T]], abort: () => Boolean, suppressSQLExceptionLogging: Boolean): Try[List[T]] = {
     def processRow(accumulator: List[T]): Try[List[T]] = {
       if (!abort.apply) {
         if (resultSet.next()) {
-          val resultSetReadOnlyRow = new ResultSetReadOnlyRow(resultSet)
+          val resultSetReadOnlyRow = new ResultSetRowReadOnly(resultSet)
           convertToT(resultSetReadOnlyRow) match {
             case Success(optionT) =>
               optionT match {
@@ -261,7 +261,7 @@ package object Sql {
   final class Select[T](
       val databaseAccess: DatabaseAccess
     , val sql: String
-    , val convertToT: ResultSetReadOnlyRow => Try[Option[T]]
+    , val convertToT: ResultSetRowReadOnly => Try[Option[T]]
     , val statement: Connection => Try[Statement] = connection => Try(connection.createStatement)
     , val result: (Statement, String) => Try[ResultSet] = (statement, sql) => Try(statement.executeQuery(sql))
     , val abort: () => Boolean = () => false

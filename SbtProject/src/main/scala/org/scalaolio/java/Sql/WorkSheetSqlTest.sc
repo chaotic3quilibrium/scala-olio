@@ -1,4 +1,4 @@
-import org.scalaolio.java.Sql.{ResultSetReadOnlyRow, DatabaseAccessUrl, Select}
+import org.scalaolio.java.Sql.{ResultSetRowReadOnly, DatabaseAccessUrl, Select}
 import scala.util.{Try, Success}
 val q = 1
 //
@@ -13,7 +13,7 @@ case class AliMain(
     id: Int
   , aliValue: String
 )
-val converter: ResultSetReadOnlyRow => Try[Option[AliMain]] =
+val converter: ResultSetRowReadOnly => Try[Option[AliMain]] =
   (resultSetRow) => {
     Success(
       Some(
