@@ -204,6 +204,9 @@ package object Class_ {
         case None =>
           None
       }
+
+    val fullName: String =
+     rawNameSpace.getOrElse("") + simpleName
   }
 
   /** Enable simples conversion from java.lang.Class to Name

@@ -54,3 +54,4 @@ object ChessPiecesEnhancedDecoratedTestExhaustivePatternMatch {
     }
 }
 
+val piece = ChessPiecesEnhancedDecorated.memberByNameLift("KING")

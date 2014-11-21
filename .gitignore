@@ -2,3 +2,4 @@ target/
 SbtProject/.idea/
 SbtProject/lib/
 SbtProject/artifacts/
+SbtProject/projectFilesBackup/

@@ -14,6 +14,8 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.util
 
+import org.scalaolio.java.lang.Class_.Name
+
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.{Failure, Success, Try}
 
@@ -57,7 +59,8 @@ trait Enumeration {
           if (!isAddClosed)
             memberSealedTraitDescendantNames.flatMap(memberSealedTraitDescendantNamesFm => {
               val memberSealedTraitDescendantNamesFmLowerCase = memberSealedTraitDescendantNamesFm.map(_.toLowerCase)
-              if (getClass.getName.toLowerCase == member.nameSpace.getOrElse("").toLowerCase)
+              val className = Name(getClass)
+              if (className.fullName.toLowerCase == member.nameSpace.getOrElse("").toLowerCase)
                 if (!memberNamesLowerCaseAsSetInternal.contains(member.name.toLowerCase)) {
                   membersTempInternal = member :: membersTempInternal
                   memberNamesLowerCaseAsSetInternal = memberNamesLowerCaseAsSetInternal + member.name.toLowerCase
@@ -76,19 +79,19 @@ trait Enumeration {
                             memberSealedTraitDescendantNamesFmLowerCase.--(orderedSetNamesLowerCase)
                           postAddFailure(
                             new IllegalStateException(
-                              s"orderedSetNamesLowerCase [${orderedSetNamesLowerCase.mkString(",")}] is not equal to "
-                                + s"memberSealedTraitDescendantNamesFmLowerCase"
-                                + s" [${memberSealedTraitDescendantNamesFmLowerCase.mkString(",")}]"
-                                + (if (inOnlyOrderedSet.nonEmpty)
-                                s" - orderedSetNamesLowerCase contains values [${inOnlyOrderedSet.mkString(",")}]"
-                                  + s" not in memberSealedTraitDescendantNamesFmLowerCase"
-                              else ""
+                                s"orderedSetNamesLowerCase [${orderedSetNamesLowerCase.mkString(",")}] is not equal to "
+                              + s"memberSealedTraitDescendantNamesFmLowerCase"
+                              + s" [${memberSealedTraitDescendantNamesFmLowerCase.mkString(",")}]"
+                              + ( if (inOnlyOrderedSet.nonEmpty)
+                                      s" - orderedSetNamesLowerCase contains values [${inOnlyOrderedSet.mkString(",")}]"
+                                    + s" not in memberSealedTraitDescendantNamesFmLowerCase"
+                                  else ""
                                 )
-                                + (if (inOnlyMemberSealedTraitDescendantNamesFm.nonEmpty)
-                                s" - memberSealedTraitDescendantNamesFmLowerCase contains values"
-                                  + s" [${inOnlyMemberSealedTraitDescendantNamesFm.mkString(",")}] not in"
-                                  + s" orderedSetNamesLowerCase"
-                              else ""
+                              + ( if (inOnlyMemberSealedTraitDescendantNamesFm.nonEmpty)
+                                      s" - memberSealedTraitDescendantNamesFmLowerCase contains values"
+                                    + s" [${inOnlyMemberSealedTraitDescendantNamesFm.mkString(",")}] not in"
+                                    + s" orderedSetNamesLowerCase"
+                                  else ""
                                 )
                             )
                           )
@@ -97,8 +100,8 @@ trait Enumeration {
                       else
                         postAddFailure(
                           new IllegalStateException(
-                            s"orderedSet.size [${orderedSet.size}] must be equal to orderedSetAsRealSet.size"
-                              + s" [${orderedSetAsRealSet.size}] (isAddClosed is true)"
+                              s"orderedSet.size [${orderedSet.size}] must be equal to orderedSetAsRealSet.size"
+                            + s" [${orderedSetAsRealSet.size}] (isAddClosed is true)"
                           )
                         )
                     }
@@ -114,23 +117,23 @@ trait Enumeration {
                       memberSealedTraitDescendantNamesFmLowerCase.--(memberNamesLowerCaseAsSetInternal)
                     postAddFailure(
                       new IllegalStateException(
-                        s"while being the same size [${memberNamesLowerCaseAsSetInternal.size}], both"
-                          + s" memberNamesLowerCaseAsSetInternal"
-                          + s" [${memberNamesLowerCaseAsSetInternal.mkString(",")}] and"
-                          + s" memberSealedTraitDescendantNamesFmLowerCase"
-                          + s" [${memberSealedTraitDescendantNamesFmLowerCase.mkString(",")}] are not equal (not sure how"
-                          + s" this is even possible)"
-                          + (if (inOnlyMemberNamesLowerCaseAsSetInternal.nonEmpty)
-                          s" - memberNamesLowerCaseAsSetInternal contains values"
-                            + s" [${inOnlyMemberNamesLowerCaseAsSetInternal.mkString(",")}] not in"
-                            + s" memberSealedTraitDescendantNamesFmLowerCase"
-                        else ""
+                          s"while being the same size [${memberNamesLowerCaseAsSetInternal.size}], both"
+                        + s" memberNamesLowerCaseAsSetInternal"
+                        + s" [${memberNamesLowerCaseAsSetInternal.mkString(",")}] and"
+                        + s" memberSealedTraitDescendantNamesFmLowerCase"
+                        + s" [${memberSealedTraitDescendantNamesFmLowerCase.mkString(",")}] are not equal (not sure how"
+                        + s" this is even possible)"
+                        + ( if (inOnlyMemberNamesLowerCaseAsSetInternal.nonEmpty)
+                                s" - memberNamesLowerCaseAsSetInternal contains values"
+                              + s" [${inOnlyMemberNamesLowerCaseAsSetInternal.mkString(",")}] not in"
+                              + s" memberSealedTraitDescendantNamesFmLowerCase"
+                            else ""
                           )
-                          + (if (inOnlyMemberSealedTraitDescendantNamesFm.nonEmpty)
-                          s" - memberSealedTraitDescendantNamesFmLowerCase contains values"
-                            + s" [${inOnlyMemberSealedTraitDescendantNamesFm.mkString(",")}] not in"
-                            + s" memberNamesLowerCaseAsSetInternal"
-                        else ""
+                        + ( if (inOnlyMemberSealedTraitDescendantNamesFm.nonEmpty)
+                                s" - memberSealedTraitDescendantNamesFmLowerCase contains values"
+                              + s" [${inOnlyMemberSealedTraitDescendantNamesFm.mkString(",")}] not in"
+                              + s" memberNamesLowerCaseAsSetInternal"
+                            else ""
                           )
                       )
                     )
@@ -139,15 +142,15 @@ trait Enumeration {
                 else
                   postAddFailure(
                     new IllegalArgumentException(
-                      s"attempting to add member with name [${member.name}] which was previously "
-                        + s"(case insensitively) added [${member.name.toLowerCase}]"
+                        s"attempting to add member with name [${member.name}] which was previously "
+                      + s"(case insensitively) added [${member.name.toLowerCase}]"
                     )
                   )
               else
                 postAddFailure(
                   new IllegalArgumentException(
-                        s"member [${member.name}] (with nameSpace [${member.nameSpace.getOrElse("<None>")}]) must be declared"
-                      + s"inside of the derived Enumeration's nameSpace [${getClass.getName}]"
+                      s"member [${member.name}] (with nameSpace [${member.nameSpace.getOrElse("<None>")}]) must be declared"
+                    + s" inside of the derived Enumeration's nameSpace [${className.fullName}]"
                   )
                 )
             }
@@ -179,18 +182,18 @@ trait Enumeration {
                   memberSealedTraitDescendantNamesFmLowerCase.--(orderedSetNamesLowerCase)
                 Failure(
                   new IllegalStateException(
-                        s"orderedSetNamesLowerCase [${orderedSetNamesLowerCase.mkString(",")}] is not equal to "
-                      + s"memberSealedTraitDescendantNamesFmLowerCase"
-                      + s"[${memberSealedTraitDescendantNamesFmLowerCase.mkString(",")}]"
-                      + (if (inOnlyOrderedSet.nonEmpty)
-                          s" - orderedSetNamesLowerCase contains values [${inOnlyOrderedSet.mkString(",")}] not in"
-                        + s" memberSealedTraitDescendantNamesFmLowerCase"
-                    else ""
+                      s"orderedSetNamesLowerCase [${orderedSetNamesLowerCase.mkString(",")}] is not equal to "
+                    + s"memberSealedTraitDescendantNamesFmLowerCase"
+                    + s"[${memberSealedTraitDescendantNamesFmLowerCase.mkString(",")}]"
+                    + ( if (inOnlyOrderedSet.nonEmpty)
+                            s" - orderedSetNamesLowerCase contains values [${inOnlyOrderedSet.mkString(",")}] not in"
+                          + s" memberSealedTraitDescendantNamesFmLowerCase"
+                        else ""
                       )
-                      + (if (inOnlyMemberSealedTraitDescendantNamesFm.nonEmpty)
-                          s" - memberSealedTraitDescendantNamesFmLowerCase contains values"
-                        + s" [${inOnlyMemberSealedTraitDescendantNamesFm.mkString(",")}] not in orderedSetNamesLowerCase"
-                    else ""
+                    + ( if (inOnlyMemberSealedTraitDescendantNamesFm.nonEmpty)
+                            s" - memberSealedTraitDescendantNamesFmLowerCase contains values"
+                          + s" [${inOnlyMemberSealedTraitDescendantNamesFm.mkString(",")}] not in orderedSetNamesLowerCase"
+                        else ""
                       )
                   )
                 )
@@ -199,8 +202,8 @@ trait Enumeration {
             else
               Failure(
                 new IllegalStateException(
-                      s"orderedSet.size [${orderedSet.size}] must be equal to orderedSetAsRealSet.size"
-                    + s" [${orderedSetAsRealSet.size}] (isAddClosed is true)"
+                    s"orderedSet.size [${orderedSet.size}] must be equal to orderedSetAsRealSet.size"
+                  + s" [${orderedSetAsRealSet.size}] (isAddClosed is true)"
                 )
               )
           }
