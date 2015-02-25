@@ -1,7 +1,3 @@
-val q = 1
-//
-import org.scalaolio.java.lang.Class_._
-//
 object AJim {
   object BJim {
     object CJim1
