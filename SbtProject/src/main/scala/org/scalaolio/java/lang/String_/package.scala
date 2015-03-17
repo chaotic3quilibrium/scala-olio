@@ -1,5 +1,7 @@
 package org.scalaolio.java.lang
 
+import scala.language.implicitConversions
+
 import scala.annotation.tailrec
 
 package object String_ {
