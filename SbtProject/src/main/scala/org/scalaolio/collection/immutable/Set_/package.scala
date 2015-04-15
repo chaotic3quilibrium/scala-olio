@@ -1,4 +1,4 @@
-package org.scalaolio.java.util
+package org.scalaolio.collection.immutable
 
 package object Set_ {
   def containsAll[T](set: Set[T], subset: Set[T]): Boolean =
