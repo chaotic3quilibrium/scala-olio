@@ -95,13 +95,16 @@ object Transform {
 
     def subset(keyPrefix: String, retainKeyPrefix: Boolean = false): Try[Transform] = {
       val keysOrderedSubset =
-        if (valueTypedMap.isKeyCaseSensitive)
-          keysOrdered.filter(_.startsWith(keyPrefix))
-        else {
-          val keyPrefixToLowerCase =
-            keyPrefix.toLowerCase
-          keysOrdered.filter(_.toLowerCase.startsWith(keyPrefixToLowerCase))
-        }
+        if (keyPrefix.nonEmpty)
+          if (valueTypedMap.isKeyCaseSensitive)
+            keysOrdered.filter(_.startsWith(keyPrefix))
+          else {
+            val keyPrefixToLowerCase =
+              keyPrefix.toLowerCase
+            keysOrdered.filter(_.toLowerCase.startsWith(keyPrefixToLowerCase))
+          }
+        else
+          keysOrdered
       if (keysOrderedSubset.nonEmpty)
         if (!keysOrderedSubset.contains(keyPrefix)) {
           val keyAndValues: List[(String, (String, String))] =

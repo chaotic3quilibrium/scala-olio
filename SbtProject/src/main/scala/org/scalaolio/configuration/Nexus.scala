@@ -69,7 +69,6 @@ class Nexus private[Nexus] (
   val utcCreated: DateTime =
     new DateTime(DateTimeZone.UTC)
 
-
   private val transformNamedNamesLowerCase =
     Nexus.TransformedNameRootName.toLowerCase :: transformNamedNames.map(_.toLowerCase)
 
@@ -189,4 +188,10 @@ class Nexus private[Nexus] (
         throw new IllegalStateException("should not EVER get here, given utcCreatedAndTransformNamedByTransformNamedName properly initialized")
     }
   }
+
+  def subset(
+      keyPrefix: String
+    , retainKeyPrefix: Boolean = false
+  ): Try[Subset] =
+    Subset(this, keyPrefix, retainKeyPrefix)
 }
