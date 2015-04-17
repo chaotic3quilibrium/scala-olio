@@ -5,6 +5,7 @@ import scala.util.{Failure, Success, Try}
 import org.joda.time.{DateTime, DateTimeZone}
 
 import org.scalaolio.collection.immutable.List_._
+import org.scalaolio.java.lang.Class_._
 
 object Nexus {
   object TransformNamed {
@@ -18,6 +19,19 @@ object Nexus {
   class TransformNamed private[TransformNamed] (
       val transform: Transform
     , val name: String
+  )
+
+  object TransformDateTimeStamped {
+    def apply(
+        transform: Transform
+      , utcDateTimeStamp: DateTime
+    ): Try[TransformDateTimeStamped] =
+      Success(new TransformDateTimeStamped(transform, utcDateTimeStamp))
+  }
+
+  class TransformDateTimeStamped private[TransformDateTimeStamped] (
+      val transform: Transform
+    , val utcDateTimeStamp: DateTime
   )
 
   val defaultISODateTimeFormat = org.joda.time.format.ISODateTimeFormat.basicDateTime
@@ -64,12 +78,12 @@ class Nexus private[Nexus] (
     def TransformedNameRoot: Nexus.TransformNamed = {
       val transform = {
         val prefix =
-          "org.scalaolio.configuration.Nexus" //TODO: replaced with Scalaolio's Named.name
+          getClass.fullName
         Transform(
           List(
               s"$prefix.name" -> name
             , s"$prefix.transformNamedNames" -> transformNamedNames.mkString(",")
-            , s"$prefix.utcCreate" -> Nexus.defaultISODateTimeFormat.print(utcCreated)
+            , s"$prefix.utcCreated" -> Nexus.defaultISODateTimeFormat.print(utcCreated)
           )
         ).get
       }
@@ -80,12 +94,12 @@ class Nexus private[Nexus] (
     ).toMap
   }
 
-  private val transformUtcDateTimeStampLock = new Object //always synchronize on transformUtcDateTimeStampLock (and not on transform or utcDateTimeStamp)
-  private var (transform, utcDateTimeStamp): (Transform, DateTime) =
+  private val transformDateTimeStampedLock = new Object //always synchronize on transformDateTimeStampedLock (and not on transformDateTimeStamped)
+  private var transformDateTimeStamped: Nexus.TransformDateTimeStamped =
     utcCreatedAndTransformNamedByTransformNamedNameLock.synchronized {
       utcCreatedAndTransformNamedByTransformNamedName(transformNamedNamesLowerCase.head) match {
         case Some(transformedNameAndDateTime) =>
-          (transformedNameAndDateTime._1.transform, transformedNameAndDateTime._2)
+          Nexus.TransformDateTimeStamped(transformedNameAndDateTime._1.transform, transformedNameAndDateTime._2).get
         case None =>
           throw new IllegalStateException("should not EVER get here, given utcCreatedAndTransformNamedByTransformNamedName properly initialized")
       }
@@ -103,10 +117,10 @@ class Nexus private[Nexus] (
         val utcDateTime = {
           val dateTimeTemp =
             new DateTime(DateTimeZone.UTC)
-          if (dateTimeTemp.isAfter(utcDateTimeStamp))
+          if (dateTimeTemp.isAfter(transformDateTimeStamped.utcDateTimeStamp))
             dateTimeTemp
           else
-            utcDateTimeStamp.plusMillis(1) //if the system is so damn fast not even a millisecond could pass between the last transformAsNow update, then force the DateTime stamp forward in time just beyond the latest time updated
+            transformDateTimeStamped.utcDateTimeStamp.plusMillis(1) //if the system is so damn fast not even a millisecond could pass between the last transformAsNow update, then force the DateTime stamp forward in time just beyond the latest time updated
         }
         val transformNamedNew: Nexus.TransformNamed =
           if (isMergeAndOverride)
@@ -131,8 +145,8 @@ class Nexus private[Nexus] (
   def addOrMergeAndOverride(transformNamed: Nexus.TransformNamed): Try[Nexus] =
     add(transformNamed, isMergeAndOverride = true)
 
-  def transformAsOfNow: Transform = {
-    def compute(transformNamedAndDateTimes: List[(Nexus.TransformNamed, DateTime)]): (Transform, DateTime) = {
+  def currentTransformDateTimeStamped: Nexus.TransformDateTimeStamped = {
+    def compute(transformNamedAndDateTimes: List[(Nexus.TransformNamed, DateTime)]): Nexus.TransformDateTimeStamped = {
       def recursive(remaining: List[(Nexus.TransformNamed, DateTime)], accumulator: (Transform, DateTime)): (Transform, DateTime) = {
         if (remaining.isEmpty)
           accumulator
@@ -148,30 +162,29 @@ class Nexus private[Nexus] (
           recursive(remaining.tail, (transformNew, dateTimeNew))
         }
       }
-      recursive(transformNamedAndDateTimes.tail, (transformNamedAndDateTimes.head._1.transform, transformNamedAndDateTimes.head._2))
+      val temp =
+        recursive(transformNamedAndDateTimes.tail, (transformNamedAndDateTimes.head._1.transform, transformNamedAndDateTimes.head._2))
+      Nexus.TransformDateTimeStamped(temp._1, temp._2).get
     }
     var mapDefined: Map[String, Option[(Nexus.TransformNamed, DateTime)]] =
       Map()
-    transformUtcDateTimeStampLock.synchronized {
+    transformDateTimeStampedLock.synchronized {
       utcCreatedAndTransformNamedByTransformNamedNameLock.synchronized {
         mapDefined =
           utcCreatedAndTransformNamedByTransformNamedName.filter(_._2.isDefined)
       }
       val mapFlattened =
         mapDefined.map(x => (x._1, x._2.get))
-      if (mapFlattened.nonEmpty)
-        if (mapFlattened.exists(x => x._2._2.isAfter(utcDateTimeStamp))) {
+      if (mapFlattened.nonEmpty) {
+        if (mapFlattened.exists(x => x._2._2.isAfter(transformDateTimeStamped.utcDateTimeStamp))) {
           //iterates though versions merging and overriding from least to highest priority
           val list =
             transformNamedNamesLowerCase.filter(key => mapFlattened.keySet.contains(key)).map(key => mapFlattened(key))
-          val (transformNew, utcDateTimeStampNew) =
+          transformDateTimeStamped =
             compute(list)
-          transform = transformNew
-          utcDateTimeStamp = utcDateTimeStampNew
-          transform
         }
-        else
-          transform
+        transformDateTimeStamped
+      }
       else
         throw new IllegalStateException("should not EVER get here, given utcCreatedAndTransformNamedByTransformNamedName properly initialized")
     }

@@ -9,7 +9,7 @@ val nexus1 =
       )
   )
 val nexusTransformAsOfNow1 =
-  nexus1.get.transformAsOfNow
+  nexus1.get.currentTransformDateTimeStamped
 val transformCommandLineArgs =
   Transform(
     List(
@@ -20,7 +20,7 @@ val transformCommandLineArgs =
 val nexus2 =
   nexus1.get.addOrReplace(Nexus.TransformNamed(transformCommandLineArgs.get, "CommandLineArgs.").get)
 val nexusTransformAsOfNow2 =
-  nexus2.get.transformAsOfNow
+  nexus2.get.currentTransformDateTimeStamped
 val transformAppHost =
   Transform(
     List(
@@ -35,7 +35,7 @@ val transformAppHost =
 val nexus3 =
   nexus2.get.addOrReplace(Nexus.TransformNamed(transformAppHost.get, """app/conf/config.json - AppHost.""").get)
 val nexusTransformAsOfNow3 =
-  nexus3.get.transformAsOfNow
+  nexus3.get.currentTransformDateTimeStamped
 val transformJdbcDatabase =
   Transform(
     List(
@@ -53,4 +53,4 @@ val transformJdbcDatabase =
 val nexus4 =
   nexus3.get.addOrReplace(Nexus.TransformNamed(transformJdbcDatabase.get, "config.json - JdbcDatabase").get)
 val nexusTransformAsOfNow4 =
-  nexus4.get.transformAsOfNow
+  nexus4.get.currentTransformDateTimeStamped
