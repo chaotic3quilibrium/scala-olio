@@ -47,4 +47,10 @@ class Subset private[Subset] (
       Subset(nexus, keyPrefix, retainKeyPrefix)
     else
       Success(this)
+
+  def subset(
+      keyPrefix: String
+    , retainKeyPrefix: Boolean = false
+  ): Try[Subset] =
+    Subset(nexus, this.keyPrefix + keyPrefix, retainKeyPrefix)
 }
