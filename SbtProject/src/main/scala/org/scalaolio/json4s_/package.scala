@@ -88,7 +88,7 @@ package object json4s_ {
             Success(a)
           case Failure(e) =>
             val message =
-              "JValue at JSON path \"" + ("jValue" :: path).mkString(" \\ ") + "\"" + e.getMessage.drop("JValue ".size)
+              "JValue at JSON path \"" + ("jValue" :: path).mkString(" \\ ") + "\"" + e.getMessage.drop("JValue ".length)
             Failure(new IllegalStateException(message))
         }
       )
@@ -199,6 +199,44 @@ package object json4s_ {
         case _ =>
           Failure(new IllegalStateException("unable to convert to Boolean"))
       }
+
+    def toKeyValues(keyPrefix: String = "", pathSeparator: String = "."): Try[List[(String, String)]] = {
+      def recursive(jValue2: JValue, keyPrefix2: String = "", key: String): Try[List[(String, String)]] = {
+        def processListOfTuple2(keyNew: String, tuple2s: List[(JValue, String)]): Try[List[(String, String)]] = {
+          val tryStringAndStrings =
+            tuple2s.map(tuple2 => recursive(tuple2._1, keyNew, tuple2._2))
+          if (!tryStringAndStrings.exists(_.isFailure))
+            Success(tryStringAndStrings.map(_.get).flatten)
+          else
+            tryStringAndStrings.dropWhile(_.isSuccess).head
+        }
+        val keyNew =
+          keyPrefix2 + (if (keyPrefix2.nonEmpty) pathSeparator else "") + key
+        jValue2.toJavaString match {
+          case Success(value) =>
+            Success(List(keyNew -> value))
+          case Failure(_) =>
+            jValue2 match {
+              case jObject: JObject =>
+                if (jObject.obj.nonEmpty)
+                  processListOfTuple2(keyNew, jObject.obj.map(jField => (jField._2, jField._1)))
+                else
+                  Success(Nil)
+              case jArray: JArray =>
+                if (jArray.arr.nonEmpty)
+                  processListOfTuple2(keyNew, jArray.arr.zipWithIndex.map(jValueAndInt => (jValueAndInt._1, jValueAndInt._2.toString)))
+                else
+                  Success(Nil)
+              case _ =>
+                Failure(new IllegalStateException(s"should NEVER get here - missed JValue type at path [$keyPrefix2]"))
+            }
+        }
+      }
+      if ((jValue.isInstanceOf[JObject] || jValue.isInstanceOf[JArray]) || keyPrefix.nonEmpty)
+        recursive(jValue, keyPrefix, "")
+      else
+        Failure(new IllegalArgumentException("when jValue is not one of either JObject or JArray, keyPrefix must be nonEmpty"))
+    }
   }
 
   implicit def convertJValueToRichJValue(jValue: JValue): RichJValue =
