@@ -13,7 +13,7 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio
 
-import scala.reflect.runtime.universe.{Symbol,TypeTag}
+import scala.reflect.runtime.universe.Symbol
 
 object Trait_ {
   def fetchSealedTraitDescendantsViaTraitSymbol(symbol: Symbol): Option[Set[Symbol]] = {

@@ -200,7 +200,7 @@ package object json4s_ {
           Failure(new IllegalStateException("unable to convert to Boolean"))
       }
 
-    def toKeyValues(keyPrefix: String = "", pathSeparator: String = "."): Try[List[(String, String)]] = {
+    def toKeyAndValues(keyPrefix: String = "", pathSeparator: String = "."): Try[List[(String, String)]] = {
       def recursive(jValue2: JValue, keyPrefix2: String = "", key: String): Try[List[(String, String)]] = {
         def processListOfTuple2(keyNew: String, tuple2s: List[(JValue, String)]): Try[List[(String, String)]] = {
           val tryStringAndStrings =

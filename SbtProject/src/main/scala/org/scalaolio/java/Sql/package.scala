@@ -28,6 +28,23 @@ import scala.util.{Failure, Success, Try}
 package object Sql {
   private val LOGGER = Logger(getClass.getName)
 
+  object DatabaseAccess {
+    def viaJdbc(
+        driverName: String     //ex: "org.h2.Driver"
+      , url: String            //ex: "jdbc:h2:tcp://localhost/~/test"
+      , username: String = ""  //ex: "sa"
+      , password: String = ""  //ex: "sa"
+      , suppressSQLExceptionLogging: Boolean = false
+    ): DatabaseAccess =
+      new DatabaseAccessJdbc(driverName, url, username, password, suppressSQLExceptionLogging)
+
+    def viaJndi(
+        name: String
+      , suppressSQLExceptionLogging: Boolean = false
+    ): DatabaseAccess =
+      new DatabaseAccessJndi(name, suppressSQLExceptionLogging)
+  }
+
   trait DatabaseAccess {
     def getConnection: Try[Connection]
     def suppressSQLExceptionLogging: Boolean
@@ -45,22 +62,22 @@ package object Sql {
     )
   }
 
-  class DatabaseAccessUrl(
+  class DatabaseAccessJdbc(
       val driverName: String     //ex: "org.h2.Driver"
-    , val connectionUrl: String  //ex: "jdbc:h2:tcp://localhost/~/test"
+    , val url: String            //ex: "jdbc:h2:tcp://localhost/~/test"
     , val username: String = ""  //ex: "sa"
     , val password: String = ""  //ex: "sa"
-    , val suppressSQLExceptionLogging: Boolean = false
+    , val suppressSQLExceptionLogging: Boolean
   ) extends DatabaseAccess {
     def getConnection: Try[Connection] =
       Try(Class.forName(driverName)) match {
         case Success(_) =>
-          Try(DriverManager.getConnection(connectionUrl, username, password)) match {
+          Try(DriverManager.getConnection(url, username, password)) match {
             case Success(connection) =>
               Success(connection)
             case Failure(throwable) =>
               errorOut[Connection](
-                  s"DriverManager.getConnection($connectionUrl, $username, PASSWORD_SUPPRESSED) failed - original exception: ${throwable.getMessage}"
+                  s"DriverManager.getConnection($url, $username, PASSWORD_SUPPRESSED) failed - original exception: ${throwable.getMessage}"
                 , suppressSQLExceptionLogging
                 , Some(throwable)
               )
@@ -74,9 +91,9 @@ package object Sql {
       }
   }
 
-  class DatabaseAccessUrlJndi(
+  class DatabaseAccessJndi(
       val name: String
-    , val suppressSQLExceptionLogging: Boolean = false
+    , val suppressSQLExceptionLogging: Boolean
   ) extends DatabaseAccess {
     def getConnection: Try[Connection] = {
       Try(new InitialContext()) match {
