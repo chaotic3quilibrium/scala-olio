@@ -42,7 +42,7 @@ val transformJdbcDatabase =
         "readOnly.akka.system.name" -> "host-actor-system"
       , "readOnly.akka.system.globalTimeout" -> "10,SECONDS"
       , "readOnly.akka.service.admin.name" -> "service-admin"
-      , "readOnly.akka.service.admin.interface" -> "127.0.0.1"
+      , "readOnly.akka.service.admin.interface" -> "template=>[CommandLineArgs.host.name]"
       , "readOnly.akka.service.admin.port" -> "8081"
       , "readOnly.akka.service.saas.name" -> "service-saas"
       , "readOnly.akka.service.saas.interface" -> "localhost"
@@ -54,3 +54,9 @@ val nexus4 =
   nexus3.get.addOrReplace(Nexus.TransformNamed(transformJdbcDatabase.get, "config.json - JdbcDatabase").get)
 val nexusTransformAsOfNow4 =
   nexus4.get.currentTransformDateTimeStamped
+val subset =
+  nexus4.get.subset("")
+val valueHost =
+  subset.get.valueTyped.string("CommandLineArgs.host.name")
+val valueInterface =
+  subset.get.valueTyped.string("readOnly.akka.service.admin.interface")

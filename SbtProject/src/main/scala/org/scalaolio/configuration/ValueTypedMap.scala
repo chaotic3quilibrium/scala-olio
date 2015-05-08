@@ -8,10 +8,11 @@ object ValueTypedMap {
   def apply(
       valueByKey: Map[String, String]
     , isKeyCaseSensitive: Boolean = false
+    , templateWedge: (String => String) = (string) => string
   ): Try[ValueTypedMap] =
     validateAndConform(valueByKey, isKeyCaseSensitive).flatMap(
       valueByKeyValid =>
-        Success(new Impl(valueByKeyValid, isKeyCaseSensitive))
+        Success(new Impl(valueByKeyValid, isKeyCaseSensitive, templateWedge))
     )
 
   def validateAndConform(
@@ -38,6 +39,7 @@ object ValueTypedMap {
   private[ValueTypedMap] class Impl private[ValueTypedMap] (
       val valueByKey: Map[String, String]
     , val isKeyCaseSensitive: Boolean
+    , val templateWedge: (String => String)
   ) extends ValueTypedMap {
     override def toString: String =
       s"ValueTypedMap(${valueByKey.mkString(",")},$isKeyCaseSensitive)"
@@ -85,6 +87,7 @@ object ValueTypedMap {
 trait ValueTypedMap extends ValueTyped {
   def valueByKey: Map[String, String] //key always nonEmpty, value associated with key may be isEmpty or nonEmpty
   def isKeyCaseSensitive: Boolean //if false, valueByKey.keySet will all be force converted toLowerCase
+  def templateWedge: (String => String)
 
   def invertKeyCaseSensitive(newKeys: Option[Set[String]] = None): Try[ValueTypedMap]
   def transitionToCaseSensitive(newKeys: Option[Set[String]] = None): Try[ValueTypedMap]
@@ -97,13 +100,16 @@ trait ValueTypedMap extends ValueTyped {
     , emptyValueStringMeans: () => A  //only relevant if emptyValueStringHasMeaning is true
   ): Try[A] =
     Try(valueByKey(if (isKeyCaseSensitive) key else key.toLowerCase)).flatMap(
-      value =>
-        if (value.nonEmpty)
-          parse(value)
+      value => {
+        val valueNew =
+          templateWedge(value)
+        if (valueNew.nonEmpty)
+          parse(valueNew)
         else
           if (emptyValueStringHasMeaning)
             Success(emptyValueStringMeans.apply())
           else
             Failure(new IllegalStateException(s"since emptyValueStringHasMeaning is false, key [$key] must not return value of empty String"))
+      }
     )
 }

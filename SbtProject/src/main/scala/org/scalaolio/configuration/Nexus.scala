@@ -6,6 +6,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 
 import org.scalaolio.collection.immutable.List_._
 import org.scalaolio.java.lang.Class_._
+import org.scalaolio.java.lang.String_._
 
 object Nexus {
   object TransformNamed {
@@ -34,27 +35,111 @@ object Nexus {
     , val utcDateTimeStamp: DateTime
   )
 
+  object TemplateProfile {
+    val DEFAULT_PREFIX = "template=>"
+    val DEFAULT_OPEN = "["
+    val DEFAULT_CLOSE = "]"
+
+    def default: TemplateProfile =
+      TemplateProfile().get
+
+    def apply(
+        prefix: String = DEFAULT_PREFIX
+      , open: String = DEFAULT_OPEN
+      , close: String = DEFAULT_CLOSE
+    ): Try[TemplateProfile] =
+      if (prefix.nonEmpty)
+        if (open.nonEmpty)
+          if (close.nonEmpty)
+            if (!open.contains(close))
+              if (!close.contains(open))
+                Success(new TemplateProfile(prefix, open, close))
+              else
+                Failure(new IllegalArgumentException(s"open [$open] must not be equal to or contained by close [$close]"))
+            else
+              Failure(new IllegalArgumentException(s"close [$close] must not be equal to or contained by open [$open]"))
+          else
+            Failure(new IllegalArgumentException("close must be nonEmpty"))
+        else
+          Failure(new IllegalArgumentException("open must be nonEmpty"))
+      else
+        Failure(new IllegalArgumentException("prefix must be nonEmpty"))
+  }
+
+  class TemplateProfile private[TemplateProfile] (
+      val prefix: String
+    , val open: String
+    , val close: String
+  ) {
+    def findOpenAndCloses(string: String): (String, List[(Int, Int)]) = //(truncatedString, List((indexOfOpen, indexOfClose)))
+      if (string.nonEmpty && string.startsWith(prefix)) {
+        val truncated =
+          string.drop(prefix.length)
+        val opens =
+          truncated.indexesOf(open)
+        val closes =
+          truncated.indexesOf(close)
+        if (opens.size == closes.size) {
+          val openAndCloses =
+            opens.zip(closes)
+          if (!openAndCloses.exists(onc => onc._1 > onc._2))
+            (truncated, openAndCloses)
+          else
+            (truncated, Nil) //at some point an open followed its close
+        }
+        else
+          (truncated, Nil) //not an equal number of opens to closes
+      }
+      else
+        (string, Nil)
+
+    def findKeys(string: String): (String, Set[String]) = { //sans open and close
+      val (stringNew, opensAndCloses) =
+        findOpenAndCloses(string)
+      if (opensAndCloses.nonEmpty)
+        (stringNew, opensAndCloses.map(onc => stringNew.substring(onc._1 + open.length, onc._2)).toSet)
+      else
+        (stringNew, Set())
+    }
+
+    def replace(string: String, valueByKey: Map[String, String], isKeyCaseSensitive: Boolean): String = {
+      val (stringNew, opensAndCloses) =
+        findOpenAndCloses(string)
+      if (opensAndCloses.nonEmpty) {
+        val keeping =
+          (0 :: opensAndCloses.map(onc => List(onc._1, onc._2 + close.length)).flatten ::: List(stringNew.length)).grouped(2).map(ssbe => stringNew.substring(ssbe.head, ssbe.tail.head))
+        val replacements =
+          opensAndCloses.map(onc => stringNew.substring(onc._1 + open.length, onc._2)).map(key => valueByKey.getOrElse(if (isKeyCaseSensitive) key else key.toLowerCase, open + key + close)) ::: List("")
+        keeping.toList.zip(replacements).map(knr => List(knr._1, knr._2)).flatten.mkString
+      }
+      else
+        stringNew
+    }
+  }
+
   val defaultISODateTimeFormat = org.joda.time.format.ISODateTimeFormat.basicDateTime
   val TransformedNameRootName = "Nexus.TransformedName.Root"
 
   def apply(
       name: String
     , transformNamedNames: List[String]
+    , templateProfile: Option[TemplateProfile] = Some(TemplateProfile.default)
   ): Try[Nexus] =
-    validateAndConform(name, transformNamedNames).flatMap(
-      nameAndTransformNamedNames =>
-        Success(new Nexus(nameAndTransformNamedNames._1, nameAndTransformNamedNames._2))
+    validateAndConform(name, transformNamedNames, templateProfile).flatMap(
+      nameTransformNamedNamesAndTemplateProfile =>
+        Success(new Nexus(nameTransformNamedNamesAndTemplateProfile._1, nameTransformNamedNamesAndTemplateProfile._2, nameTransformNamedNamesAndTemplateProfile._3))
     )
 
   def validateAndConform(
       name: String
     , transformNamedNames: List[String] //must be distinct, is case insensitive (all keys are internally forced to lower case) and is ordered least to most priority; i.e. for each item, it overrides what is left of it and is overridden by whatever, if anything exists to its right
-  ): Try[(String, List[String])] =
+    , templateProfile: Option[TemplateProfile]
+  ): Try[(String, List[String], Option[TemplateProfile])] =
     if (transformNamedNames.nonEmpty) {
       val (_, dupes) =
         transformNamedNames.map(_.toLowerCase).filterDupes
       if (dupes.isEmpty)
-        Success((name, transformNamedNames))
+        Success((name, transformNamedNames, templateProfile))
       else
         Failure(new IllegalArgumentException(s"following the toLowerCase conversion, transformNamedNames must not contain duplicates [${dupes.mkString(",")}]"))
     }
@@ -65,6 +150,7 @@ object Nexus {
 class Nexus private[Nexus] (
     val name: String
   , val transformNamedNames: List[String]
+  , val templateProfile: Option[Nexus.TemplateProfile]
 ) {
   val utcCreated: DateTime =
     new DateTime(DateTimeZone.UTC)
