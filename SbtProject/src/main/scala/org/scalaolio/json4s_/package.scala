@@ -29,7 +29,10 @@ package object json4s_ {
           Failure(new IllegalArgumentException(s"jValue isEmpty"))
       }
 
-    def via(path: List[String] = Nil): Try[JValue] = {
+    def via(path: String = ""): Try[JValue] =
+      via(List(path).filter(_.nonEmpty))
+
+    def via(path: List[String]): Try[JValue] = {
       @tailrec
       def recursive(tryJValue: Try[JValue], pathRemaining: List[String]): Try[JValue] =
         if (pathRemaining.isEmpty || tryJValue.isFailure)
@@ -152,6 +155,22 @@ package object json4s_ {
           Failure(new IllegalStateException("unable to convert to String"))
       }
 
+    def toFloat: Try[Float] =
+      jValue.toTry.flatMap {
+        case jString: JString =>
+          Try(jString.s.toFloat)
+        case jDouble: JDouble =>
+          Success(jDouble.num.toFloat)
+        case jDecimal: JDecimal =>
+          Success(jDecimal.num.toFloat)
+        case jInt: JInt =>
+          Success(jInt.num.toFloat)
+        case jBool: JBool =>
+          Success(if (jBool.value) 1.0f else 0.0f)
+        case _ =>
+          Failure(new IllegalStateException("unable to convert to Float"))
+      }
+
     def toDouble: Try[Double] =
       jValue.toTry.flatMap {
         case jString: JString =>
@@ -182,6 +201,22 @@ package object json4s_ {
           Success(if (jBool.value) 1 else 0)
         case _ =>
           Failure(new IllegalStateException("unable to convert to Int"))
+      }
+
+    def toLong: Try[Long] =
+      jValue.toTry.flatMap {
+        case jString: JString =>
+          Try(jString.s.toLong)
+        case jDouble: JDouble =>
+          Success(jDouble.num.toLong)
+        case jDecimal: JDecimal =>
+          Success(jDecimal.num.toLong)
+        case jInt: JInt =>
+          Success(jInt.num.toLong)
+        case jBool: JBool =>
+          Success(if (jBool.value) 1L else 0L)
+        case _ =>
+          Failure(new IllegalStateException("unable to convert to Long"))
       }
 
     def toBoolean: Try[Boolean] =
