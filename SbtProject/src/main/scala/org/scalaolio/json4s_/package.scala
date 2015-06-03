@@ -29,6 +29,17 @@ package object json4s_ {
           Failure(new IllegalArgumentException(s"jValue isEmpty"))
       }
 
+    def has(path: String = ""): Option[JValue] =
+      has(List(path).filter(_.nonEmpty))
+
+    def has(path: List[String]): Option[JValue] =
+      via(path) match {
+        case Success(jValueResult) =>
+          Some(jValueResult)
+        case Failure(_) =>
+          None
+      }
+
     def via(path: String = ""): Try[JValue] =
       via(List(path).filter(_.nonEmpty))
 
