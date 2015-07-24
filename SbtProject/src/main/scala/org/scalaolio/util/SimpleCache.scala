@@ -23,6 +23,8 @@ package org.scalaolio.util
 class SimpleCache [K, V] (
     content: Map[K, V] = Map[K, V]()
 ) {
+  private val cacheLock: Object = new Object
+  @volatile
   private var cache: Map[K, V] = content
 
   /** Obtain a read-only copy of the cache as a Map.
@@ -56,7 +58,7 @@ class SimpleCache [K, V] (
     , elseValueProducer: K => V
   ): V = {
     def generateCacheEntry(key: K): V =
-      this.synchronized {
+      cacheLock.synchronized {
         cache.get(key) match {
           case Some(value) =>
             value //prior thread populated the cache
@@ -66,7 +68,7 @@ class SimpleCache [K, V] (
             value
         }
       }
-    cache.get(key).getOrElse(generateCacheEntry(key))
+    cache.getOrElse(key, generateCacheEntry(key))
   }
 }
 /*
