@@ -84,9 +84,9 @@ object FailedPreconditionsException {
       Failure(FailedPreconditionMustBeNonEmptyList())
   private def composeMessage(failedPreconditions: List[FailedPrecondition]): String =
     if (failedPreconditions.size > 1)
-      s"failed preconditions [${failedPreconditions.size}] have occurred - ${failedPreconditions.map(_.getMessage).mkString("|")}"
+      s"failed preconditions [${failedPreconditions.size}] have occurred - ${failedPreconditions.map(_.optionMessage.getOrElse("")).mkString("|")}"
     else
-      s"failed precondition has occurred - ${failedPreconditions.head.getMessage}"
+      s"failed precondition has occurred - ${failedPreconditions.head.optionMessage.getOrElse("")}"
 }
 final class FailedPreconditionsException private[FailedPreconditionsException] (
   val failedPreconditions: List[FailedPreconditionsException.FailedPrecondition]
