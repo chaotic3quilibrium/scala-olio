@@ -3,6 +3,26 @@ package org.scalaolio.util
 import scala.util.{Failure, Success, Try}
 
 object FailedPreconditionsException {
+  trait FailedPreconditionObject[F <: FailedPrecondition] {
+    def apply: F =
+      apply()
+
+    def apply(message: String): F =
+      apply(optionMessage = Some(message))
+
+    def apply(cause: Throwable): F =
+      apply(optionCause = Some(cause))
+
+    def apply(message: String, cause: Throwable): F =
+      apply(optionMessage = Some(message), optionCause = Some(cause))
+
+    def apply(
+        optionMessage: Option[String] = None
+      , optionCause: Option[Throwable] = None
+      , isEnableSuppression: Boolean = false
+      , isWritableStackTrace: Boolean = false
+    ): F
+  }
   abstract class FailedPrecondition (
       val optionMessage: Option[String]
     , val optionCause: Option[Throwable]
@@ -21,19 +41,7 @@ object FailedPreconditionsException {
     isWritableStackTrace
   )
 
-  object FailedPreconditionMustBeNonEmptyList {
-    def apply: FailedPreconditionMustBeNonEmptyList =
-      FailedPreconditionMustBeNonEmptyList()
-
-    def apply(message: String): FailedPreconditionMustBeNonEmptyList =
-      FailedPreconditionMustBeNonEmptyList(optionMessage = Some(message))
-
-    def apply(cause: Throwable): FailedPreconditionMustBeNonEmptyList =
-      FailedPreconditionMustBeNonEmptyList(optionCause = Some(cause))
-
-    def apply(message: String, cause: Throwable): FailedPreconditionMustBeNonEmptyList =
-      FailedPreconditionMustBeNonEmptyList(optionMessage = Some(message), optionCause = Some(cause))
-
+  object FailedPreconditionMustBeNonEmptyList extends FailedPreconditionObject[FailedPreconditionMustBeNonEmptyList] {
     def apply(
         optionMessage: Option[String] = None
       , optionCause: Option[Throwable] = None
