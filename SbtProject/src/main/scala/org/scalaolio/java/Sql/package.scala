@@ -20,7 +20,6 @@ import javax.sql.DataSource
 
 import grizzled.slf4j.Logger
 import org.joda.time.{DateTime, DateTimeZone}
-import org.scalaolio.util.Try_.CompletedNoException
 
 import scala.util.{Failure, Success, Try}
 
@@ -252,7 +251,7 @@ package object Sql {
           Try(autoCloseable.close()) match {
             case Success(_) =>
             case Failure(throwable) =>
-              errorOut[CompletedNoException](
+              errorOut[Unit](
                   s"close failed - original exception: ${throwable.getMessage}"
                 , databaseAccess.suppressSQLExceptionLogging
                 , Some(throwable)

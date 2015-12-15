@@ -1,8 +1,7 @@
 package org.scalaolio.java.lang
 
-import scala.language.implicitConversions
-
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 
 package object String_ {
   def indexesOf(source: String, target: String, index: Int = 0, withinOverlaps: Boolean = false): List[Int] = {
@@ -11,7 +10,7 @@ package object String_ {
       val position = source.indexOf(target, indexTarget)
       if (position == -1) accumulator
       else
-        recursive(position + (if (withinOverlaps) 1 else target.size), position :: accumulator)
+        recursive(position + (if (withinOverlaps) 1 else target.length), position :: accumulator)
     }
     recursive(index, Nil).reverse
   }
@@ -28,7 +27,7 @@ package object String_ {
         if (index == -1)
           remaining :: accumulator
         else {
-          recursive(remaining.drop(index + separator.size), remaining.take(index) :: accumulator)
+          recursive(remaining.drop(index + separator.length), remaining.take(index) :: accumulator)
         }
       }
     }
@@ -38,7 +37,7 @@ package object String_ {
   def spanSansSeparator(string: String, separator: String): (String, String) = {
     val index = string.indexOf(separator)
     if (index > -1)
-      (string.take(index), string.drop(index + separator.size))
+      (string.take(index), string.drop(index + separator.length))
     else
       (string, "")
   }

@@ -20,7 +20,6 @@ import scala.reflect.runtime.universe.TypeTag
 import scala.util.{Failure, Success, Try}
 
 import org.scalaolio.java.lang.Class_
-import org.scalaolio.util.Try_._
 import org.scalaolio.Trait_
 
 /**
@@ -46,8 +45,8 @@ trait Enumeration {
   private var membersTempInternal: List[Member] = Nil
   @volatile
   private var memberNamesLowerCaseAsSetInternal: Set[String] = Set()
-  final private def add(member: Member): Try[CompletedNoException] = {
-    def postAddFailure(throwable: Throwable): Try[CompletedNoException] = {
+  final private def add(member: Member): Try[Unit] = {
+    def postAddFailure(throwable: Throwable): Try[Unit] = {
       val failure = Failure(throwable)
       addFailure = Some(throwable)
       failure
@@ -69,9 +68,9 @@ trait Enumeration {
                     if (orderedSet.nonEmpty) {
                       val orderedSetAsRealSet = orderedSet.toSet
                       if (orderedSet.size == orderedSetAsRealSet.size) {
-                        val orderedSetNamesLowerCase = orderedSetAsRealSet.map(_.name.toLowerCase).toSet
+                        val orderedSetNamesLowerCase = orderedSetAsRealSet.map(_.name.toLowerCase)
                         if (orderedSetNamesLowerCase == memberSealedTraitDescendantNamesFmLowerCase)
-                          Success(completedNoExceptionSingleton)
+                          Success(())
                         else {
                           val inOnlyOrderedSet =
                             orderedSetNamesLowerCase.--(memberSealedTraitDescendantNamesFmLowerCase)
@@ -109,7 +108,7 @@ trait Enumeration {
                       postAddFailure(new IllegalStateException("orderedSet must not be empty (isAddClosed is true)"))
                   else
                   if (memberNamesLowerCaseAsSetInternal.size != memberSealedTraitDescendantNamesFmLowerCase.size)
-                    Success(completedNoExceptionSingleton)
+                    Success(())
                   else {
                     val inOnlyMemberNamesLowerCaseAsSetInternal =
                       memberNamesLowerCaseAsSetInternal.--(memberSealedTraitDescendantNamesFmLowerCase)
@@ -174,7 +173,7 @@ trait Enumeration {
           if (orderedSet.nonEmpty) {
             val orderedSetAsRealSet = orderedSet.toSet
             if (orderedSet.size == orderedSetAsRealSet.size) {
-              val orderedSetNamesLowerCase = orderedSetAsRealSet.map(_.name.toLowerCase).toSet
+              val orderedSetNamesLowerCase = orderedSetAsRealSet.map(_.name.toLowerCase)
               memberSealedTraitDescendantNames.flatMap(memberSealedTraitDescendantNamesFm => {
                 val memberSealedTraitDescendantNamesFmLowerCase = memberSealedTraitDescendantNamesFm.map(_.toLowerCase)
                 val inOnlyOrderedSet = orderedSetNamesLowerCase.--(memberSealedTraitDescendantNamesFmLowerCase)
@@ -358,8 +357,8 @@ trait Enumeration {
   /**
    *
    */
-  final lazy val status: Try[CompletedNoException] =
-    membersLift.flatMap(_ => Success(completedNoExceptionSingleton))
+  final lazy val status: Try[Unit] =
+    membersLift.flatMap(_ => Success(()))
 
   /**
    *
@@ -437,7 +436,7 @@ trait Enumeration {
     /**
      *
      */
-    final val status: Try[CompletedNoException] = add(this)
+    final val status: Try[Unit] = add(this)
   }
 }
 /*

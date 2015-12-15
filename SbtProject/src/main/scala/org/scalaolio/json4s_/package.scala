@@ -2,7 +2,6 @@ package org.scalaolio
 
 import scala.annotation.tailrec
 import scala.language.implicitConversions
-
 import scala.util.{Failure, Success, Try}
 
 import org.json4s._

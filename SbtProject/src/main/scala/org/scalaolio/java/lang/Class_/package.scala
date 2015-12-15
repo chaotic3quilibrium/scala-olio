@@ -15,6 +15,8 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.java.lang
 
+import scala.language.implicitConversions
+
 /** Serves to ease idiomatic Scala interactions with java.lang.Class.
  */
 package object Class_ {
@@ -200,7 +202,7 @@ package object Class_ {
     val nameSpace: Option[String] =
       rawNameSpace match {
         case Some(rawNameSpaceGet) =>
-          Some(rawNameSpaceGet.take(rawNameSpaceGet.size - 1))
+          Some(rawNameSpaceGet.take(rawNameSpaceGet.length - 1))
         case None =>
           None
       }

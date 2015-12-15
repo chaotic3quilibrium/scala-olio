@@ -2,32 +2,30 @@
 ** Part Of:     Scala Olio API                                          **
 ** URL:         http://www.scalaolio.org                                **
 ** File:                                                                **
-**   Package:   org.scalaolio.util.Try_                                 **
-**   Name:      package.scala                                           **
+**   Package:   org.scalaolio.java.lang                                 **
+**   Name:      AutoCloseable_.scala                                    **
 **                                                                      **
 ** Description:                                                         **
-**  Enables Try to be used even when the method does not return         **
-**  anything in the event of success (i.e. is a mutator)                **
+**  Implements the ARM (Automatic Resource Management) pattern          **
+**  implemented in Java 7 (1.7). Substitutes exception and null prone   **
+**  Java classes and methods with Scala artifacts (like Try and Option) **
+**  which play much more consistently with other Scala idioms           **
 **                                                                      **
 ** License:   GPLv3 license (see end of file for details)               **
 ** Ownership: Copyright (C) 2014 by Jim O'Flaherty                      **
 \* ---------.---------.---------.---------.---------.---------.-------- */
-package org.scalaolio.util
+package org.scalaolio.java.lang
 
-/** This package object serves to ease Scala interactions with mutating
- *  methods. Used extensively in the java.io related packages.
+import scala.util.Try
+
+/** Implements the ARM (Automatic Resource Management) pattern
+ *  implemented in Java 7 (1.7). Substitutes exception and null prone
+ *  Java classes and methods with Scala artifacts (like Try and Option)
+ *  which play much more consistently with other Scala idioms
  */
-package object Try_ {
-  /** Placeholder type for when a mutator method does not intend to
-   *  return anything with a Success, but needs to be able to return a
-   *  Failure with an unthrown Exception.
-   */
-  sealed case class CompletedNoException private[Try_] ()
-
-  /** Placeholder instance for when a mutator method needs to indicate
-   *  success via Success(completedNoExceptionSingleton)
-   */
-  val completedNoExceptionSingleton = new CompletedNoException()
+object AutoCloseable_ {
+  def using[A <: AutoCloseable, R](instantiateAutoCloseable: () => A)(transfer: A => Try[R]): Try[R] =
+    Try(instantiateAutoCloseable()).flatMap(autoCloseable => try transfer(autoCloseable) finally autoCloseable.close())
 }
 /*
 This Scala file is free software: you can redistribute it and/or
