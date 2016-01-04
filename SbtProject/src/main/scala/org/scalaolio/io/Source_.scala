@@ -6,12 +6,11 @@
 **   Name:      Source.scala                                            **
 **                                                                      **
 ** Description:                                                         **
-**  Substitutes exception and null prone Java classes and methods with  **
-**  Scala artifacts (like Try and Option) which play much more          **
-**  consistently with other Scala idioms                                **
+**  Augments scala.io.Source with proper ARM (Automatic Resource        **
+**  Management)                                                         **
 **                                                                      **
 ** License:   GPLv3 license (see end of file for details)               **
-** Ownership: Copyright (C) 2015 by Jim O'Flaherty                      **
+** Ownership: Copyright (C) 2016 by Jim O'Flaherty                      **
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.io
 

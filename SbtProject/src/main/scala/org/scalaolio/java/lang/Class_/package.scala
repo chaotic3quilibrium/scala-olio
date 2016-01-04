@@ -11,7 +11,7 @@
 **  consistently with other Scala idioms                                **
 **                                                                      **
 ** License:   GPLv3 license (see end of file for details)               **
-** Ownership: Copyright (C) 2014 by Jim O'Flaherty                      **
+** Ownership: Copyright (C) 2016 by Jim O'Flaherty                      **
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.java.lang
 
