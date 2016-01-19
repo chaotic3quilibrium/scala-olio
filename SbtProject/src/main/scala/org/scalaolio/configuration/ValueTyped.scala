@@ -38,266 +38,708 @@ trait ValueTyped {
   final val DEFAULT_MAP_STRING_STRING_SEPARATOR = DEFAULT_LIST_STRING_SEPARATOR
   final val DEFAULT_MAP_STRING_STRING_KEY_VALUE_SEPARATOR = "->"
 
-  def fromStringToTyped[A](
-      key: String
-    , parse: String => Try[A]
-    , emptyValueStringHasMeaning: Boolean
-    , emptyValueStringMeans: () => A  //only relevant if emptyValueStringHasMeaning is true
-  ): Try[A]
+  def valueByKey: Map[String, String] //key always nonEmpty, value associated with key may be isEmpty or nonEmpty
+  def isKeyCaseSensitive: Boolean //if false, valueByKey.keySet will all be force converted toLowerCase
+  def tryOptionValueWedgeNonEmpty: (String, String) => Try[Option[String]] // = (keyAbsolute, value) => Success(Some(value))
+  def tryOptionValueWedgeIsEmpty: (String, Boolean) => Try[Option[String]] // = (keyAbsolute, isValueEmptyString) => Success(Some(""))
+
+  def tryOptionFromStringToTyped[A](
+      key: String //key
+    , tryParseToA: String => Try[Option[A]] //parse
+    , optionEmptyValueStringMeans: Option[A] //when Some(A), that A is the meaningful value; when None, return Failure indicating an undefined default value
+  ): Try[Option[A]] = {
+    val keyResolved =
+      if (isKeyCaseSensitive)
+        key
+      else
+        key.toLowerCase
+    def resolveEmptyValue: Try[Option[A]] =
+      optionEmptyValueStringMeans match {
+        case Some(a) =>
+          Success(Some(a))
+        case None =>
+          Failure(new IllegalStateException(s"when optionEmptyValueStringMeans.isEmpty, value returned by key [$keyResolved] must be nonEmpty"))
+      }
+    def processNonEmpty(value: String) =
+      for {
+        optionValueResolved <-
+          tryOptionValueWedgeNonEmpty(keyResolved, value)
+        optionAResolved <-
+          optionValueResolved match {
+            case Some(valueResolved) =>
+              tryParseToA(valueResolved).flatMap {
+                case Some(aParsed) =>
+                  Success(Some(aParsed))
+                case None =>
+                  resolveEmptyValue
+              }
+            case None =>
+              resolveEmptyValue
+          }
+      } yield optionAResolved
+    def processEmptyOrUndefined(isValueEmptyString: Boolean) =
+      tryOptionValueWedgeIsEmpty(keyResolved, isValueEmptyString).flatMap {
+        case Some(value) =>
+          if (value.nonEmpty)
+            processNonEmpty(value)
+          else
+            resolveEmptyValue
+        case None =>
+          resolveEmptyValue
+      }
+    valueByKey.get(keyResolved) match {
+      case Some(value) =>
+        if (value.nonEmpty)
+          processNonEmpty(value)
+        else
+          processEmptyOrUndefined(true)
+      case None =>
+        processEmptyOrUndefined(false)
+    }
+  }
 
   //Simple - primitives
-  def boolean(
+  //Boolean
+  def tryOptionBoolean(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Boolean = DEFAULT_EMPTY_VALUE_STRING_MEANS_BOOLEAN //only relevant if emptyValueStringHasMeaning is true
+    , optionEmptyValueStringMeans: Option[Boolean] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BOOLEAN) //set to None if empty value undefined and should return a Failure
+    , valuesBooleanTrueLowerCase: Set[String] = DEFAULT_VALUES_BOOLEAN_TRUE_LOWER_CASE
+  ): Try[Option[Boolean]] =
+    tryOptionFromStringToTyped(key, value => Try(valuesBooleanTrueLowerCase.contains(value.toLowerCase)).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryBoolean(
+      key: String
+    , optionEmptyValueStringMeans: Option[Boolean] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BOOLEAN) //set to None if empty value undefined and should return a Failure
     , valuesBooleanTrueLowerCase: Set[String] = DEFAULT_VALUES_BOOLEAN_TRUE_LOWER_CASE
   ): Try[Boolean] =
-    fromStringToTyped(key, value => Try(valuesBooleanTrueLowerCase.contains(value.toLowerCase)), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    tryOptionBoolean(key, optionEmptyValueStringMeans, valuesBooleanTrueLowerCase).map(_.get)
+
+  def optionBoolean(
+      key: String
+    , optionEmptyValueStringMeans: Option[Boolean] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BOOLEAN) //set to None if empty value undefined and should return a Failure
+    , valuesBooleanTrueLowerCase: Set[String] = DEFAULT_VALUES_BOOLEAN_TRUE_LOWER_CASE
+  ): Option[Boolean] =
+    tryOptionBoolean(key, optionEmptyValueStringMeans, valuesBooleanTrueLowerCase).get
+
+  def boolean(
+      key: String
+    , optionEmptyValueStringMeans: Option[Boolean] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BOOLEAN) //set to None if empty value undefined and should return a Failure
+    , valuesBooleanTrueLowerCase: Set[String] = DEFAULT_VALUES_BOOLEAN_TRUE_LOWER_CASE
+  ): Boolean =
+    optionBoolean(key, optionEmptyValueStringMeans, valuesBooleanTrueLowerCase).get
+
+  //Byte
+  def tryOptionByte(
+      key: String
+    , optionEmptyValueStringMeans: Option[Byte] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BYTE) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Byte]] =
+    tryOptionFromStringToTyped(key, value => Try(value.toByte).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryByte(
+      key: String
+    , optionEmptyValueStringMeans: Option[Byte] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BYTE) //set to None if empty value undefined and should return a Failure
+  ): Try[Byte] =
+    tryOptionByte(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionByte(
+      key: String
+    , optionEmptyValueStringMeans: Option[Byte] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BYTE) //set to None if empty value undefined and should return a Failure
+  ): Option[Byte] =
+    tryOptionByte(key, optionEmptyValueStringMeans).get
 
   def byte(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Byte = DEFAULT_EMPTY_VALUE_STRING_MEANS_BYTE //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Byte] =
-    fromStringToTyped(key, value => Try(value.toByte), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Byte] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BYTE) //set to None if empty value undefined and should return a Failure
+  ): Byte =
+    optionByte(key, optionEmptyValueStringMeans).get
+
+  //Short
+  def tryOptionShort(
+      key: String
+    , optionEmptyValueStringMeans: Option[Short] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_SHORT) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Short]] =
+    tryOptionFromStringToTyped(key, value => Try(value.toShort).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryShort(
+      key: String
+    , optionEmptyValueStringMeans: Option[Short] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_SHORT) //set to None if empty value undefined and should return a Failure
+  ): Try[Short] =
+    tryOptionShort(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionShort(
+      key: String
+    , optionEmptyValueStringMeans: Option[Short] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_SHORT) //set to None if empty value undefined and should return a Failure
+  ): Option[Short] =
+    tryOptionShort(key, optionEmptyValueStringMeans).get
 
   def short(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Short = DEFAULT_EMPTY_VALUE_STRING_MEANS_SHORT //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Short] =
-    fromStringToTyped(key, value => Try(value.toShort), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Short] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_SHORT) //set to None if empty value undefined and should return a Failure
+  ): Short =
+    optionShort(key, optionEmptyValueStringMeans).get
+
+  //Char
+  def tryOptionChar(
+      key: String
+    , optionEmptyValueStringMeans: Option[Char] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_CHAR) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Char]] =
+    tryOptionFromStringToTyped(key, value => Try(value.head).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryChar(
+      key: String
+    , optionEmptyValueStringMeans: Option[Char] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_CHAR) //set to None if empty value undefined and should return a Failure
+  ): Try[Char] =
+    tryOptionChar(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionChar(
+      key: String
+    , optionEmptyValueStringMeans: Option[Char] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_CHAR) //set to None if empty value undefined and should return a Failure
+  ): Option[Char] =
+    tryOptionChar(key, optionEmptyValueStringMeans).get
 
   def char(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Char = DEFAULT_EMPTY_VALUE_STRING_MEANS_CHAR //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Char] =
-    fromStringToTyped(key, value => Try(value.head), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Char] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_CHAR) //set to None if empty value undefined and should return a Failure
+  ): Char =
+    optionChar(key, optionEmptyValueStringMeans).get
+
+  //Int
+  def tryOptionInt(
+      key: String
+    , optionEmptyValueStringMeans: Option[Int] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_INT) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Int]] =
+    tryOptionFromStringToTyped(key, value => Try(value.toInt).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryInt(
+      key: String
+    , optionEmptyValueStringMeans: Option[Int] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_INT) //set to None if empty value undefined and should return a Failure
+  ): Try[Int] =
+    tryOptionInt(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionInt(
+      key: String
+    , optionEmptyValueStringMeans: Option[Int] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_INT) //set to None if empty value undefined and should return a Failure
+  ): Option[Int] =
+    tryOptionInt(key, optionEmptyValueStringMeans).get
 
   def int(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Int = DEFAULT_EMPTY_VALUE_STRING_MEANS_INT //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Int] =
-    fromStringToTyped(key, value => Try(value.toInt), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Int] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_INT) //set to None if empty value undefined and should return a Failure
+  ): Int =
+    optionInt(key, optionEmptyValueStringMeans).get
+
+  //Long
+  def tryOptionLong(
+      key: String
+    , optionEmptyValueStringMeans: Option[Long] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_LONG) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Long]] =
+    tryOptionFromStringToTyped(key, value => Try(value.toLong).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryLong(
+      key: String
+    , optionEmptyValueStringMeans: Option[Long] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_LONG) //set to None if empty value undefined and should return a Failure
+  ): Try[Long] =
+    tryOptionLong(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionLong(
+      key: String
+    , optionEmptyValueStringMeans: Option[Long] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_LONG) //set to None if empty value undefined and should return a Failure
+  ): Option[Long] =
+    tryOptionLong(key, optionEmptyValueStringMeans).get
 
   def long(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Long = DEFAULT_EMPTY_VALUE_STRING_MEANS_LONG //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Long] =
-    fromStringToTyped(key, value => Try(value.toLong), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Long] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_LONG) //set to None if empty value undefined and should return a Failure
+  ): Long =
+    optionLong(key, optionEmptyValueStringMeans).get
+
+  //Float
+  def tryOptionFloat(
+      key: String
+    , optionEmptyValueStringMeans: Option[Float] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_FLOAT) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Float]] =
+    tryOptionFromStringToTyped(key, value => Try(value.toFloat).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryFloat(
+      key: String
+    , optionEmptyValueStringMeans: Option[Float] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_FLOAT) //set to None if empty value undefined and should return a Failure
+  ): Try[Float] =
+    tryOptionFloat(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionFloat(
+      key: String
+    , optionEmptyValueStringMeans: Option[Float] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_FLOAT) //set to None if empty value undefined and should return a Failure
+  ): Option[Float] =
+    tryOptionFloat(key, optionEmptyValueStringMeans).get
 
   def float(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Float = DEFAULT_EMPTY_VALUE_STRING_MEANS_FLOAT //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Float] =
-    fromStringToTyped(key, value => Try(value.toFloat), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Float] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_FLOAT) //set to None if empty value undefined and should return a Failure
+  ): Float =
+    optionFloat(key, optionEmptyValueStringMeans).get
+
+  //Double
+  def tryOptionDouble(
+      key: String
+    , optionEmptyValueStringMeans: Option[Double] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_DOUBLE) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[Double]] =
+    tryOptionFromStringToTyped(key, value => Try(value.toDouble).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryDouble(
+      key: String
+    , optionEmptyValueStringMeans: Option[Double] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_DOUBLE) //set to None if empty value undefined and should return a Failure
+  ): Try[Double] =
+    tryOptionDouble(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionDouble(
+      key: String
+    , optionEmptyValueStringMeans: Option[Double] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_DOUBLE) //set to None if empty value undefined and should return a Failure
+  ): Option[Double] =
+    tryOptionDouble(key, optionEmptyValueStringMeans).get
 
   def double(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Double = DEFAULT_EMPTY_VALUE_STRING_MEANS_DOUBLE //only relevant if emptyValueStringHasMeaning is true
-  ): Try[Double] =
-    fromStringToTyped(key, value => Try(value.toDouble), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[Double] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_DOUBLE) //set to None if empty value undefined and should return a Failure
+  ): Double =
+    optionDouble(key, optionEmptyValueStringMeans).get
+
 
   //simple - Classes
+  //String
+  def tryOptionString(
+      key: String
+    , optionEmptyValueStringMeans: Option[String] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_STRING) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[String]] =
+    tryOptionFromStringToTyped(key, value => Success(value).map(Some(_)), optionEmptyValueStringMeans)
+
+  //TODO: must apply this pattern to all the other calls
+  def tryString(
+      key: String
+    , optionEmptyValueStringMeans: Option[String] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_STRING) //set to None if empty value undefined and should return a Failure
+  ): Try[String] =
+    tryOptionString(key, optionEmptyValueStringMeans).map(_.get)
+
+  //TODO: must apply this pattern to all the other calls
+  def optionString(
+      key: String
+    , optionEmptyValueStringMeans: Option[String] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_STRING) //set to None if empty value undefined and should return a Failure
+  ): Option[String] =
+    tryOptionString(key, optionEmptyValueStringMeans).get
+
+  //TODO: must apply this pattern to all the other calls
   def string(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: String = DEFAULT_EMPTY_VALUE_STRING_MEANS_STRING //only relevant if emptyValueStringHasMeaning is true
-  ): Try[String] =
-    fromStringToTyped(key, value => Success(value), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[String] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_STRING) //set to None if empty value undefined and should return a Failure
+  ): String =
+    optionString(key, optionEmptyValueStringMeans).get
+
+  //BigInt
+  def tryOptionBigInt(
+      key: String
+    , optionEmptyValueStringMeans: Option[BigInt] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_INT) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[BigInt]] =
+    tryOptionFromStringToTyped(key, value => Try(BigInt(value)).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryBigInt(
+      key: String
+    , optionEmptyValueStringMeans: Option[BigInt] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_INT) //set to None if empty value undefined and should return a Failure
+  ): Try[BigInt] =
+    tryOptionBigInt(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionBigInt(
+      key: String
+    , optionEmptyValueStringMeans: Option[BigInt] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_INT) //set to None if empty value undefined and should return a Failure
+  ): Option[BigInt] =
+    tryOptionBigInt(key, optionEmptyValueStringMeans).get
 
   def bigInt(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: BigInt = DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_INT //only relevant if emptyValueStringHasMeaning is true
-  ): Try[BigInt] =
-    fromStringToTyped(key, value => Try(BigInt(value)), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[BigInt] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_INT) //set to None if empty value undefined and should return a Failure
+  ): BigInt =
+    optionBigInt(key, optionEmptyValueStringMeans).get
+
+  //BigDecimal
+  def tryOptionBigDecimal(
+      key: String
+    , optionEmptyValueStringMeans: Option[BigDecimal] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_DECIMAL) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[BigDecimal]] =
+    tryOptionFromStringToTyped(key, value => Try(BigDecimal(value)).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryBigDecimal(
+      key: String
+    , optionEmptyValueStringMeans: Option[BigDecimal] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_DECIMAL) //set to None if empty value undefined and should return a Failure
+  ): Try[BigDecimal] =
+    tryOptionBigDecimal(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionBigDecimal(
+      key: String
+    , optionEmptyValueStringMeans: Option[BigDecimal] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_DECIMAL) //set to None if empty value undefined and should return a Failure
+  ): Option[BigDecimal] =
+    tryOptionBigDecimal(key, optionEmptyValueStringMeans).get
 
   def bigDecimal(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: BigDecimal = DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_DECIMAL //only relevant if emptyValueStringHasMeaning is true
-  ): Try[BigDecimal] =
-    fromStringToTyped(key, value => Try(BigDecimal(value)), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[BigDecimal] = Some(DEFAULT_EMPTY_VALUE_STRING_MEANS_BIG_DECIMAL) //set to None if empty value undefined and should return a Failure
+  ): BigDecimal =
+    optionBigDecimal(key, optionEmptyValueStringMeans).get
+
+  //DateTime
+  def tryOptionDateTime(
+      key: String
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[DateTime]] =
+    tryOptionFromStringToTyped(key, value => Try(new DateTime(value)).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryDateTime(
+      key: String
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime) //set to None if empty value undefined and should return a Failure
+  ): Try[DateTime] =
+    tryOptionDateTime(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionDateTime(
+      key: String
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime) //set to None if empty value undefined and should return a Failure
+  ): Option[DateTime] =
+    tryOptionDateTime(key, optionEmptyValueStringMeans).get
 
   def dateTime(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: DateTime = new DateTime //only relevant if emptyValueStringHasMeaning is true
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime) //set to None if empty value undefined and should return a Failure
+  ): DateTime =
+    optionDateTime(key, optionEmptyValueStringMeans).get
+
+  //UtcDateTime
+  def tryOptionUtcDateTime(
+      key: String
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime(DateTimeZone.UTC)) //set to None if empty value undefined and should return a Failure
+  ): Try[Option[DateTime]] =
+    tryOptionFromStringToTyped(key, value => Try(new DateTime(value, DateTimeZone.UTC)).map(Some(_)), optionEmptyValueStringMeans)
+
+  def tryUtcDateTime(
+      key: String
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime(DateTimeZone.UTC)) //set to None if empty value undefined and should return a Failure
   ): Try[DateTime] =
-    fromStringToTyped(key, value => Try(new DateTime(value)), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    tryOptionUtcDateTime(key, optionEmptyValueStringMeans).map(_.get)
+
+  def optionUtcDateTime(
+      key: String
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime(DateTimeZone.UTC)) //set to None if empty value undefined and should return a Failure
+  ): Option[DateTime] =
+    tryOptionUtcDateTime(key, optionEmptyValueStringMeans).get
 
   def utcDateTime(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: DateTime = new DateTime(DateTimeZone.UTC) //only relevant if emptyValueStringHasMeaning is true
-  ): Try[DateTime] =
-    fromStringToTyped(key, value => Try(new DateTime(value, DateTimeZone.UTC)), emptyValueStringHasMeaning, () => emptyValueStringMeans)
+    , optionEmptyValueStringMeans: Option[DateTime] = Some(new DateTime(DateTimeZone.UTC)) //set to None if empty value undefined and should return a Failure
+  ): DateTime =
+    optionUtcDateTime(key, optionEmptyValueStringMeans).get
 
   //complex - classes
-  def listString(
+  //TODO: add the three other methods tryX, optionX and X (like all the types above)
+  //TODO: add parameter and implementation fix for when single value is empty; i.e. provide default or generate Failure
+  def tryOptionListString(
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: List[String] = Nil //only relevant if emptyValueStringHasMeaning is true
-    , defaultSeparator: String = DEFAULT_LIST_STRING_SEPARATOR
-    , isDefaultSeparatorRegex: Boolean = false
-  ): Try[List[String]] = {
-    def f(value: String): Try[List[String]] =
+    , optionEmptyValuesMeans: Option[List[String]] = Some(Nil) //set to None if empty values undefined and should return a Failure
+    , separator: String = DEFAULT_LIST_STRING_SEPARATOR
+    , isSeparatorRegex: Boolean = false
+  ): Try[Option[List[String]]] = {
+    def resolveEmptyValue: Try[Option[List[String]]] =
+      optionEmptyValuesMeans match {
+        case Some(strings) =>
+          Success(Some(strings))
+        case None =>
+          val keyResolved =
+            if (isKeyCaseSensitive)
+              key
+            else
+              key.toLowerCase
+          Failure(new IllegalStateException(s"when optionEmptyValueAsMeans.isEmpty, strings returned by key [$keyResolved] must be nonEmpty"))
+      }
+    def f(value: String): Try[Option[List[String]]] =
       Try(
-        if (isDefaultSeparatorRegex)
-          value.split(defaultSeparator).toList
+        if (isSeparatorRegex)
+          value.split(separator).toList
         else
-          value.splitLiterally(defaultSeparator)
-      )
-    fromStringToTyped(key, f, emptyValueStringHasMeaning, () => emptyValueStringMeans)
+          value.splitLiterally(separator)
+      ).map(Some(_))
+    tryOptionFromStringToTyped(key, f, Some(Nil)).flatMap {
+      case Some(strings) =>
+        if (strings.nonEmpty)
+          Success(Some(strings))
+        else
+          resolveEmptyValue
+      case None =>
+        resolveEmptyValue
+    }
   }
 
-  def list[A](
+  //TODO: add the three other methods tryX, optionX and X (like all the types above)
+  //TODO: add parameter and implementation fix for when single value is empty; i.e. provide default or generate Failure
+  def tryOptionList[A](
       key: String
-    , parser: String => Try[A]
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: List[A] = Nil //only relevant if emptyValueStringHasMeaning is true
-    , defaultSeparator: String = DEFAULT_LIST_STRING_SEPARATOR
-    , isDefaultSeparatorRegex: Boolean = false
-  ): Try[List[A]] =
-    listString(key, emptyValueStringHasMeaning, Nil, defaultSeparator, isDefaultSeparatorRegex).flatMap(
-      values => {
-        val tryValueAndAs =
-          values.map(value => (value, parser(value)))
-        if (!tryValueAndAs.exists(_._2.isFailure))
-          Success(tryValueAndAs.map(_._2.get))
+    , tryParseToA: String => Try[A]
+    , optionEmptyValueAsMeans: Option[List[A]] = Some(Nil) //set to None if empty valueAs undefined and should return a Failure
+    , separator: String = DEFAULT_LIST_STRING_SEPARATOR
+    , isSeparatorRegex: Boolean = false
+  ): Try[Option[List[A]]] = {
+    def resolveEmptyValue: Try[Option[List[A]]] =
+      optionEmptyValueAsMeans match {
+        case Some(as) =>
+          Success(Some(as))
+        case None =>
+          val keyResolved =
+            if (isKeyCaseSensitive)
+              key
+            else
+              key.toLowerCase
+          Failure(new IllegalStateException(s"when optionEmptyValueAsMeans.isEmpty, valueAs returned by key [$keyResolved] must be nonEmpty"))
+      }
+    tryOptionListString(key, Some(Nil), separator, isSeparatorRegex).flatMap {
+      case Some(valueAs) =>
+        val valueAndTryAs =
+          valueAs.map(value => (value, tryParseToA(value)))
+        if (!valueAndTryAs.exists(_._2.isFailure)) {
+          val as =
+            valueAndTryAs.collect {
+              case (_, Success(a)) =>
+                a
+            }
+          if (as.nonEmpty)
+            Success(Some(as))
+          else
+            resolveEmptyValue
+        }
         else {
           val failureAs =
-            tryValueAndAs.filter(_._2.isFailure).map(tuple2 => (tuple2._1, tuple2._2.asInstanceOf[Failure[_]]))
+            valueAndTryAs.collect {
+              case (v, f: Failure[A]) =>
+                (v, f)
+            }
           val plural =
             if (failureAs.size > 1) "s" else ""
           val failureAsToString =
             failureAs.map(tuple2 => s"${tuple2._1}=>${tuple2._2.exception.getMessage}").mkString("|&&|")
           Failure(new IllegalStateException(s"parser failed on value$plural - $failureAsToString"))
         }
+      case None =>
+        resolveEmptyValue
+    }
+  }
+
+  //TODO: add the three other methods tryX, optionX and X (like all the types above)
+  //TODO: add parameter and implementation fix for when single value is empty; i.e. provide default or generate Failure
+  def tryOptionSetString(
+      key: String
+    , optionEmptyValuesMeans: Option[Set[String]] = Some(Set()) //set to None if empty values undefined and should return a Failure
+    , separator: String = DEFAULT_SET_STRING_SEPARATOR
+    , isSeparatorRegex: Boolean = false
+  ): Try[Option[Set[String]]] = {
+    def resolveEmptyValue: Try[Option[Set[String]]] =
+      optionEmptyValuesMeans match {
+        case Some(strings) =>
+          Success(Some(strings))
+        case None =>
+          val keyResolved =
+            if (isKeyCaseSensitive)
+              key
+            else
+              key.toLowerCase
+          Failure(new IllegalStateException(s"when optionEmptyValueAsMeans.isEmpty, strings returned by key [$keyResolved] must be nonEmpty"))
       }
-    )
+    tryOptionListString(key, Some(Nil), separator, isSeparatorRegex).map(_.map(_.toSet)).flatMap {
+      case Some(strings) =>
+        if (strings.nonEmpty)
+          Success(Some(strings))
+        else
+          resolveEmptyValue
+      case None =>
+        resolveEmptyValue
+    }
+  }
 
-  def setString(
+  //TODO: add the three other methods tryX, optionX and X (like all the types above)
+  //TODO: add parameter and implementation fix for when single value is empty; i.e. provide default or generate Failure
+  def tryOptionSet[A](
       key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Set[String] = Set() //only relevant if emptyValueStringHasMeaning is true
-    , defaultSeparator: String = DEFAULT_SET_STRING_SEPARATOR
-    , isDefaultSeparatorRegex: Boolean = false
-  ): Try[Set[String]] =
-    listString(key, emptyValueStringHasMeaning, Nil, defaultSeparator, isDefaultSeparatorRegex).map(_.toSet)
+    , tryParseToA: String => Try[A]
+    , optionEmptyValueAsMeans: Option[Set[A]] = Some(Set()) //set to None if empty valueAs undefined and should return a Failure
+    , separator: String = DEFAULT_SET_STRING_SEPARATOR
+    , isSeparatorRegex: Boolean = false
+  ): Try[Option[Set[A]]] = {
+    def resolveEmptyValue: Try[Option[Set[A]]] =
+      optionEmptyValueAsMeans match {
+        case Some(as) =>
+          Success(Some(as))
+        case None =>
+          val keyResolved =
+            if (isKeyCaseSensitive)
+              key
+            else
+              key.toLowerCase
+          Failure(new IllegalStateException(s"when optionEmptyValueAsMeans.isEmpty, strings returned by key [$keyResolved] must be nonEmpty"))
+      }
+    tryOptionList[A](key, tryParseToA, Some(Nil), separator, isSeparatorRegex).map(_.map(_.toSet)).flatMap {
+      case Some(as) =>
+        if (as.nonEmpty)
+          Success(Some(as))
+        else
+          resolveEmptyValue
+      case None =>
+        resolveEmptyValue
+    }
+  }
 
-  def set[A](
+  //TODO: add the three other methods tryX, optionX and X (like all the types above)
+  //TODO: add parameter and implementation fix for when single value is empty; i.e. provide default or generate Failure
+  def tryOptionMapStringString(
       key: String
-    , parser: String => Try[A]
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Set[A] = Set() //only relevant if emptyValueStringHasMeaning is true
-    , defaultSeparator: String = DEFAULT_SET_STRING_SEPARATOR
-    , isDefaultSeparatorRegex: Boolean = false
-  ): Try[Set[A]] =
-    list[A](key, parser, emptyValueStringHasMeaning, Nil, defaultSeparator, isDefaultSeparatorRegex).map(_.toSet)
-
-  def mapStringString(
-      key: String
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Map[String, String] = Map() //only relevant if emptyValueStringHasMeaning is true
-    , defaultSeparator: String = DEFAULT_MAP_STRING_STRING_SEPARATOR
-    , isDefaultSeparatorRegex: Boolean = false
-    , defaultKeyValueSeparator: String = DEFAULT_MAP_STRING_STRING_KEY_VALUE_SEPARATOR
-    , isDefaultKeyValueSeparatorRegex: Boolean = false
-    , emptyMapValueHasMeaning: Boolean = false
-  ): Try[Map[String, String]] =
-    listString(key, emptyValueStringHasMeaning, Nil, defaultSeparator, isDefaultSeparatorRegex).flatMap(
-      listStringKeyAndValue => {
+    , optionEmptyValuesMeans: Option[Map[String, String]] = Some(Map()) //set to None if empty values undefined and should return a Failure
+    , separator: String = DEFAULT_MAP_STRING_STRING_SEPARATOR
+    , isSeparatorRegex: Boolean = false
+    , keyValueSeparator: String = DEFAULT_MAP_STRING_STRING_KEY_VALUE_SEPARATOR
+    , isKeyValueSeparatorRegex: Boolean = false
+  ): Try[Option[Map[String, String]]] = {
+    def resolveEmptyValue: Try[Option[Map[String, String]]] =
+      optionEmptyValuesMeans match {
+        case Some(stringByString) =>
+          Success(Some(stringByString))
+        case None =>
+          val keyResolved =
+            if (isKeyCaseSensitive)
+              key
+            else
+              key.toLowerCase
+          Failure(new IllegalStateException(s"when optionEmptyValueAsMeans.isEmpty, stringByString returned by key [$keyResolved] must be nonEmpty"))
+      }
+    tryOptionListString(key, Some(Nil), separator, isSeparatorRegex).flatMap {
+      case Some(listStringKeyAndValue) =>
         val listTryUnparsedAndTryParsed =
           listStringKeyAndValue.map(
             keyAndValue => {
               val parsed =
-                if (isDefaultKeyValueSeparatorRegex)
-                  keyAndValue.split(defaultKeyValueSeparator).toList
+                if (isKeyValueSeparatorRegex)
+                  keyAndValue.split(keyValueSeparator).toList
                 else
-                  keyAndValue.splitLiterally(defaultKeyValueSeparator)
+                  keyAndValue.splitLiterally(keyValueSeparator)
               val tryTuple2StringString: Try[(String, String)] =
                 if (parsed.size == 2) {
-                  val (key, value) = (parsed.head, parsed(1))
+                  val (key, value) =
+                    (parsed.head, parsed(1))
                   if (key.nonEmpty)
-                    if (value.nonEmpty || emptyMapValueHasMeaning)
+//                    if (value.nonEmpty || emptyMapValueHasMeaning)
                       Success((key, value))
-                    else
-                      Failure(new IllegalStateException(s"for keyAndValue [$keyAndValue] using defaultKeyValueSeparator [$defaultKeyValueSeparator], when emptyMapValueHasMeaning is false the parsed value must be nonEmpty"))
+//                    else
+//                      Failure(new IllegalStateException(s"for keyAndValue [$keyAndValue] using keyValueSeparator [$keyValueSeparator], when emptyMapValueHasMeaning is false the parsed value must be nonEmpty"))
                   else
-                    Failure(new IllegalStateException(s"for keyAndValue [$keyAndValue] using defaultKeyValueSeparator [$defaultKeyValueSeparator], the parsed key must be nonEmpty"))
+                    Failure(new IllegalStateException(s"for keyAndValue [$keyAndValue] using keyValueSeparator [$keyValueSeparator], the parsed key must be nonEmpty"))
                 }
                 else
-                  Failure(new IllegalStateException(s"for keyAndValue [$keyAndValue] using defaultKeyValueSeparator [$defaultKeyValueSeparator], parsed.length [${parsed.length}] was not equal to 2"))
+                  Failure(new IllegalStateException(s"for keyAndValue [$keyAndValue] using keyValueSeparator [$keyValueSeparator], parsed.length [${parsed.length}] was not equal to 2"))
               (keyAndValue, tryTuple2StringString)
             }
           )
-        if (!listTryUnparsedAndTryParsed.exists(_._2.isFailure))
-          Success(listTryUnparsedAndTryParsed.map(_._2.get).toMap)
-        else {
-          val listTryUnparsedAndFailureParsed =
-            listTryUnparsedAndTryParsed.filter(_._2.isFailure).map(tuple2 => (tuple2._1, tuple2._2.asInstanceOf[Failure[_]]))
-          val plural =
-            if (listTryUnparsedAndFailureParsed.size > 1) "s" else ""
-          val failureAsToString =
-            listTryUnparsedAndFailureParsed.map(tuple2 => s"${tuple2._1}=>${tuple2._2.exception.getMessage}").mkString("|&&|")
-          Failure(new IllegalStateException(s"parser failed on key/value pair$plural - $failureAsToString"))
+        if (!listTryUnparsedAndTryParsed.exists(_._2.isFailure)) {
+          val stringByString =
+            listTryUnparsedAndTryParsed.collect {
+              case (_, Success(stringAndString)) =>
+                stringAndString
+            }.toMap
+          if (stringByString.nonEmpty)
+            Success(Some(stringByString))
+          else
+            resolveEmptyValue
         }
-      }
-    )
+        else {
+          val failureStringAndStrings =
+            listTryUnparsedAndTryParsed.collect {
+              case (v, f: Failure[(String, String)]) =>
+                (v, f)
+            }
+          val plural =
+            if (failureStringAndStrings.size > 1) "s" else ""
+          val failureStringAndStringsToString =
+            failureStringAndStrings.map(tuple2 => s"${tuple2._1}=>${tuple2._2.exception.getMessage}").mkString("|&&|")
+          Failure(new IllegalStateException(s"parser failed on key/value pair$plural - $failureStringAndStringsToString"))
+        }
+      case None =>
+        resolveEmptyValue
+    }
+  }
 
-  def map[A, B](
+  //TODO: add the three other methods tryX, optionX and X (like all the types above)
+  //TODO: add parameter and implementation fix for when single value is empty; i.e. provide default or generate Failure
+  def tryOptionMap[A, B](
       key: String
-    , parserA: String => Try[A]
-    , parserB: String => Try[B]
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: Map[A, B] = Map() //only relevant if emptyValueStringHasMeaning is true
-    , defaultSeparator: String = DEFAULT_MAP_STRING_STRING_SEPARATOR
-    , isDefaultSeparatorRegex: Boolean = false
-    , defaultKeyValueSeparator: String = DEFAULT_MAP_STRING_STRING_KEY_VALUE_SEPARATOR
-    , isDefaultKeyValueSeparatorRegex: Boolean = false
-    , emptyMapValueHasMeaning: Boolean = false
-  ): Try[Map[A, B]] =
-    mapStringString(key, emptyValueStringHasMeaning, Map(), defaultSeparator, isDefaultSeparatorRegex, defaultKeyValueSeparator, isDefaultKeyValueSeparatorRegex, emptyMapValueHasMeaning).flatMap(
-      stringValueByStringKey => {
-        val stringKeyAndTryAAndStringValueAndTryB =
+    , tryParseToA: String => Try[A]
+    , tryParseToB: String => Try[B]
+    , optionEmptyValueABsMeans: Option[Map[A, B]] = Some(Map()) //set to None if empty valueABs undefined and should return a Failure
+    , separator: String = DEFAULT_MAP_STRING_STRING_SEPARATOR
+    , isSeparatorRegex: Boolean = false
+    , keyValueSeparator: String = DEFAULT_MAP_STRING_STRING_KEY_VALUE_SEPARATOR
+    , isKeyValueSeparatorRegex: Boolean = false
+  ): Try[Option[Map[A, B]]] = {
+    def resolveEmptyValue: Try[Option[Map[A, B]]] =
+      optionEmptyValueABsMeans match {
+        case Some(abs) =>
+          Success(Some(abs))
+        case None =>
+          val keyResolved =
+            if (isKeyCaseSensitive)
+              key
+            else
+              key.toLowerCase
+          Failure(new IllegalStateException(s"when optionEmptyValueAsMeans.isEmpty, abs returned by key [$keyResolved] must be nonEmpty"))
+      }
+    tryOptionMapStringString(key, Some(Map()), separator, isSeparatorRegex, keyValueSeparator, isKeyValueSeparatorRegex).flatMap {
+      case Some(stringValueByStringKey) =>
+        val stringKeyAndTryAAndStringValueAndTryBs =
           stringValueByStringKey.toList.map(
             stringKeyAndStringValue => (
                 (
                     stringKeyAndStringValue._1
-                  , parserA(stringKeyAndStringValue._1)
+                  , tryParseToA(stringKeyAndStringValue._1)
                 )
               , (
                     stringKeyAndStringValue._2
-                  , parserB(stringKeyAndStringValue._2)
+                  , tryParseToB(stringKeyAndStringValue._2)
                 )
             )
           )
-        if (!stringKeyAndTryAAndStringValueAndTryB.exists(tuple2 => tuple2._1._2.isFailure && tuple2._2._2.isFailure))
-          Success(stringKeyAndTryAAndStringValueAndTryB.map(tuple2 => (tuple2._1._2.get, tuple2._2._2.get)).toMap)
-        else {
-          val keyFailures =
-            stringKeyAndTryAAndStringValueAndTryB.filter(_._1._2.isFailure).map(tuple2 => (tuple2._1._1, tuple2._1._2.asInstanceOf[Failure[_]]))
-          val valueFailures =
-            stringKeyAndTryAAndStringValueAndTryB.filter(_._2._2.isFailure).map(tuple2 => (tuple2._2._1, tuple2._2._2.asInstanceOf[Failure[_]]))
-          val plural =
-            if (keyFailures.size + valueFailures.size > 1) "s" else ""
-          val keyFailureAsToString =
-            keyFailures.map(tuple2 => s"key:${tuple2._1}=>${tuple2._2.exception.getMessage}")
-          val valueFailureAsToString =
-            valueFailures.map(tuple2 => s"value:${tuple2._1}=>${tuple2._2.exception.getMessage}")
-          val failureAsToString =
-            (keyFailureAsToString ::: valueFailureAsToString).mkString("|&&|")
-          Failure(new IllegalStateException(s"parser failed on key/value pair$plural - $failureAsToString"))
+        if (!stringKeyAndTryAAndStringValueAndTryBs.exists(tuple2 => tuple2._1._2.isFailure || tuple2._2._2.isFailure)) {
+          val bByA =
+            stringKeyAndTryAAndStringValueAndTryBs.collect {
+              case ((_, Success(a)), (_, Success(b))) =>
+                (a, b)
+            }.toMap
+          if (bByA.nonEmpty)
+            Success(Some(bByA))
+          else
+            resolveEmptyValue
         }
-      }
-    )
+        else {
+          val stringAndFailures =
+            stringKeyAndTryAAndStringValueAndTryBs.collect {
+              case ((sa, fa: Failure[A]), (sb, fb: Failure[B])) =>
+                List((sa, fa), (sa, sb, fb))
+              case ((sa, fa: Failure[A]), _) =>
+                List((sa, fa))
+              case ((sa, _: Success[A]), (sb, fb: Failure[B])) =>
+                List((sa, sb, fb))
+            }.flatten
+          val plural =
+            if (stringAndFailures.size > 1) "s" else ""
+          val stringAndFailuresToString =
+            stringAndFailures.map {
+              case (sa: String, fa: Failure[_]) =>
+                s"key:$sa=>${fa.exception.getMessage}"
+              case (sa: String, sb: String, fb: Failure[_]) =>
+                s"(key,value):($sa,$sb)=>${fb.exception.getMessage}"
+            }.mkString("|&&|")
+          Failure(new IllegalStateException(s"parser failed on key/value pair$plural - $stringAndFailuresToString"))
+        }
+      case None =>
+        resolveEmptyValue
+    }
+  }
 }
 /*
 This Scala file is free software: you can redistribute it and/or

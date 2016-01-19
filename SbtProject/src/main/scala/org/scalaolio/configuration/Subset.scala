@@ -17,7 +17,8 @@ package org.scalaolio.configuration
 import scala.util.{Success, Try}
 
 object Subset {
-  def apply(
+  //TODO: transition to Scala case class pattern
+  def tryApply(
       nexus: Nexus
     , keyPrefix: String
     , retainKeyPrefix: Boolean = false
@@ -26,9 +27,9 @@ object Subset {
       nexusAndKeyPrefixAndRetainKeyPrefix => {
         val transformDateTimeStamped =
           nexus.currentTransformDateTimeStamped
-        transformDateTimeStamped.transform.subset(keyPrefix, retainKeyPrefix).flatMap(
+        transformDateTimeStamped.transform.trySubset(keyPrefix, retainKeyPrefix).flatMap(
           transformSubset =>
-            Nexus.TransformDateTimeStamped(transformSubset, transformDateTimeStamped.utcDateTimeStamp).flatMap(
+            Nexus.TransformDateTimeStamped.tryApply(transformSubset, transformDateTimeStamped.utcDateTimeStamp).flatMap(
               nexusTransformDateTimeStamped =>
                 Success(
                   new Subset(
@@ -48,69 +49,124 @@ object Subset {
 }
 
 class Subset private[Subset] (
-    nexus: Nexus
+    val nexus: Nexus
   , val keyPrefix: String
   , val retainKeyPrefix: Boolean
   , private val transformDateTimeStamped: Nexus.TransformDateTimeStamped //already filtered/truncated and non-empty
 ) {
-  private def templateWedge(value: String): String =
+  private def tryOptionValueWedgeNonEmpty(wedgeKeyAbsolute: String, wedgeValue: String): Try[Option[String]] =
     nexus.templateProfile match {
       case Some(templateProfile) =>
-        if (value.nonEmpty && value.startsWith(templateProfile.prefix)) {
-          val (valueTruncated, keys) =
-            templateProfile.findKeys(value)
+        if (wedgeValue.nonEmpty && wedgeValue.startsWith(templateProfile.prefix)) {
+          val (wedgeValueSanTemplatePrefix, keys) =
+            templateProfile.findKeys(wedgeValue)
           if (keys.nonEmpty) {
             val keysResolved =
               if (transformDateTimeStamped.transform.valueTypedMap.isKeyCaseSensitive)
                 keys
               else
                 keys.map(_.toLowerCase)
-            val keyAndValuesRelative =
-              keysResolved.map(key => (key, transformDateTimeStamped.transform.valueTypedMap.valueByKey.get(key)))
-            val keyAndValuesAbsolute =
-              if (keyPrefix.nonEmpty && !retainKeyPrefix) {
-                val unfoundKeys =
-                  keyAndValuesRelative.filter(_._2.isEmpty).map(_._1)
-                if (unfoundKeys.nonEmpty)
-                  unfoundKeys.map(key => (key, nexus.currentTransformDateTimeStamped.transform.valueTypedMap.valueByKey.get(key)))
-                else
-                  Set()
+            val (valueByKeyRelative, keysRemainingAfterRelative) = {
+              val knvr =
+                keysResolved
+                  .map(
+                    key =>
+                      (key, transformDateTimeStamped.transform.valueTypedMap.valueByKey.get(key))
+                  )
+                  .filter(_._2.isDefined)
+                  .map(tuple => (tuple._1, tuple._2.get))
+                  .toMap
+              (knvr, keysResolved -- knvr.keySet)
+            }
+            val (valueByKeyAbsolute, keysRemainingAfterAbsolute) =
+              if (keysRemainingAfterRelative.nonEmpty && keyPrefix.nonEmpty && !retainKeyPrefix) {
+                val knva =
+                  keysRemainingAfterRelative
+                    .map(
+                      key =>
+                        (key, nexus.currentTransformDateTimeStamped.transform.valueTypedMap.valueByKey.get(key))
+                    )
+                    .filter(_._2.isDefined)
+                    .map(tuple => (tuple._1, tuple._2.get))
+                    .toMap
+                (knva, keysRemainingAfterRelative -- knva.keySet)
               }
               else
-                Set()
+                (Map[String, String](), keysRemainingAfterRelative)
+            val (valueByKeyException, keysRemainingAfterException) =
+              if (keysRemainingAfterAbsolute.nonEmpty)
+                nexus.optionValueWedgeNonEmptyTemplateExceptionResolver match {
+                  case Some(valueWedgeNonEmptyTemplateExceptionResolver) =>
+                    val knve: Map[String, String] = {
+                      ( for {
+                          templateKey <-
+                            keysRemainingAfterAbsolute
+                        } yield (templateKey, valueWedgeNonEmptyTemplateExceptionResolver(this, wedgeKeyAbsolute, templateKey, wedgeValueSanTemplatePrefix))
+                      )
+                        .filter(_._2.isDefined)
+                        .map(tuple => (tuple._1, tuple._2.get))
+                        .toMap
+                    }
+                    (knve, keysRemainingAfterAbsolute -- knve.keySet)
+                  case None =>
+                    (Map[String, String](), keysRemainingAfterAbsolute)
+                }
+              else
+                (Map[String, String](), keysRemainingAfterAbsolute)
             val valueByKey = (
-                 keyAndValuesRelative.filter(_._2.isDefined).map(knv => (knv._1, knv._2.get))
-              ++ keyAndValuesAbsolute.filter(_._2.isDefined).map(knv => (knv._1, knv._2.get))
-            ).toMap
-            templateProfile.replace(value, valueByKey, transformDateTimeStamped.transform.valueTypedMap.isKeyCaseSensitive)
+                 valueByKeyRelative
+              ++ valueByKeyAbsolute
+              ++ valueByKeyException
+            )
+            Success(Some(templateProfile.replace(wedgeValue, valueByKey, transformDateTimeStamped.transform.valueTypedMap.isKeyCaseSensitive)))
           }
           else
-            value
+            Success(Some(wedgeValue))
         }
         else
-          value
+          Success(Some(wedgeValue))
       case None =>
-        value
+        Success(Some(wedgeValue))
+    }
+
+  private def tryOptionValueWedgeIsEmpty(wedgeKeyAbsolute: String, isValueEmptyString: Boolean): Try[Option[String]] =
+    nexus.optionValueWedgeIsEmptyResolver match {
+      case Some(valueWedgeIsEmptyResolver) =>
+        Success(valueWedgeIsEmptyResolver(this, wedgeKeyAbsolute, isValueEmptyString))
+      case None =>
+        Success(
+          if (isValueEmptyString)
+            Some("")
+          else
+            None
+        )
     }
 
   val valueTyped: ValueTyped =
-    ValueTypedMap(
+    ValueTypedMap.tryApply(
         transformDateTimeStamped.transform.valueTypedMap.valueByKey
       , transformDateTimeStamped.transform.valueTypedMap.isKeyCaseSensitive
-      , templateWedge
+      , tryOptionValueWedgeNonEmpty
+      , tryOptionValueWedgeIsEmpty
     ).get
 
-  def current: Try[Subset] =
+  def tryCurrent: Try[Subset] =
     if (nexus.currentTransformDateTimeStamped.utcDateTimeStamp.isAfter(transformDateTimeStamped.utcDateTimeStamp))
-      Subset(nexus, keyPrefix, retainKeyPrefix)
+      Subset.tryApply(nexus, keyPrefix, retainKeyPrefix)
     else
       Success(this)
 
-  def subset(
+  def toMap: Map[String, String] =
+    transformDateTimeStamped.transform.valueTypedMap.valueByKey.keySet.map(
+      key =>
+        (key, valueTyped.tryString(key).getOrElse("<valueTyped.string(...) error>"))
+    ).toMap
+
+  def trySubset(
       keyPrefix: String
     , retainKeyPrefix: Boolean = false
   ): Try[Subset] =
-    Subset(nexus, this.keyPrefix + keyPrefix, retainKeyPrefix)
+    Subset.tryApply(nexus, this.keyPrefix + keyPrefix, retainKeyPrefix)
 }
 /*
 This Scala file is free software: you can redistribute it and/or

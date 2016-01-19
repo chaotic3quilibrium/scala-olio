@@ -36,7 +36,7 @@ object Transform {
       keyAndValues: List[(String, String)]
     , isKeyCaseSensitive: Boolean = false
   ): Try[Transform] = {
-    ValueTypedMap(keyAndValues.toMap, isKeyCaseSensitive).flatMap(
+    ValueTypedMap.tryApply(keyAndValues.toMap, isKeyCaseSensitive).flatMap(
       valueTypedMap =>
         Transform(valueTypedMap, keyAndValues.map(_._1))
     )
@@ -70,7 +70,7 @@ object Transform {
             if (valueTypedMap.isKeyCaseSensitive)
               Success((valueTypedMap, keysOrdered))
             else
-              ValueTypedMap(valueTypedMap.valueByKey.map(tuple2 => (tuple2._1.toLowerCase, tuple2._2)), isKeyCaseSensitive = false).flatMap(
+              ValueTypedMap.tryApply(valueTypedMap.valueByKey.map(tuple2 => (tuple2._1.toLowerCase, tuple2._2)), isKeyCaseSensitive = false).flatMap(
                 valueTypedMapGet =>
                   Success((valueTypedMapGet, keysOrdered))
               )
@@ -99,14 +99,14 @@ object Transform {
 
     def rebase(insertKeyPrefix: String): Transform =
       new Impl(
-          ValueTypedMap(
+          ValueTypedMap.tryApply(
               valueTypedMap.valueByKey.map(keyAndValue => (if (valueTypedMap.isKeyCaseSensitive) insertKeyPrefix else insertKeyPrefix.toLowerCase + keyAndValue._1, keyAndValue._2))
             , valueTypedMap.isKeyCaseSensitive
           ).get
         , keysOrdered.map(insertKeyPrefix + _)
       )
 
-    def subset(keyPrefix: String, retainKeyPrefix: Boolean = false): Try[Transform] = {
+    def trySubset(keyPrefix: String, retainKeyPrefix: Boolean = false): Try[Transform] = {
       val keysOrderedSubset =
         if (keyPrefix.nonEmpty)
           if (valueTypedMap.isKeyCaseSensitive)
@@ -142,7 +142,7 @@ object Transform {
                 )
               }
             )
-          ValueTypedMap(
+          ValueTypedMap.tryApply(
               keyAndValues.map(_._2).toMap
             , valueTypedMap.isKeyCaseSensitive
           ).flatMap(
@@ -156,13 +156,13 @@ object Transform {
         Failure(new IllegalArgumentException(s"keysOrdered isEmpty after filtering for keyPrefix [$keyPrefix]"))
     }
 
-    def invertCaseSensitive: Try[Transform] =
-      valueTypedMap.invertKeyCaseSensitive(Some(keysOrdered.toSet)).flatMap(
+    def tryInvertCaseSensitive: Try[Transform] =
+      valueTypedMap.tryInvertKeyCaseSensitive(Some(keysOrdered.toSet)).flatMap(
         valueTypedMapGet =>
           Success(new Impl(valueTypedMapGet, keysOrdered))
       )
 
-    def merge(that: Transform): Try[Transform] =
+    def tryMerge(that: Transform): Try[Transform] =
       if (that == this)
         Success(this) //since it is the same instance, just return this
       else
@@ -170,7 +170,7 @@ object Transform {
           if (that.valueTypedMap.isKeyCaseSensitive == valueTypedMap.isKeyCaseSensitive)
             Success(that)
           else
-            that.invertCaseSensitive
+            that.tryInvertCaseSensitive
         ).flatMap(
           thatNew => {
             val (keysOrderedAdd, valueByKeyAdd) =
@@ -195,7 +195,7 @@ object Transform {
                   keysOrderedAddLowerCase.map(key => (key, thatNew.valueTypedMap.valueByKey(key))).toMap
                 (keysOrderedAdd, valueByKeyAdd)
               }
-            ValueTypedMap(valueTypedMap.valueByKey ++ valueByKeyAdd, valueTypedMap.isKeyCaseSensitive).flatMap(
+            ValueTypedMap.tryApply(valueTypedMap.valueByKey ++ valueByKeyAdd, valueTypedMap.isKeyCaseSensitive).flatMap(
               mapping =>
                 Success(new Impl(mapping, keysOrdered ++ keysOrderedAdd))
             )
@@ -209,9 +209,9 @@ trait Transform {
   def keysOrdered: List[String] //always nonEmpty
 
   def rebase(insertKeyPrefix: String): Transform //iterates through each of the keys, prepending insertKeyPrefix to each key
-  def subset(keyPrefix: String, retainKeyPrefix: Boolean = false): Try[Transform] //retains ordering
-  def invertCaseSensitive: Try[Transform] //changes the case sensitivity to the opposite of this.isCaseSensitive
-  def merge(that: Transform): Try[Transform] //appends only key/value pairs from that which don't already exist in this - this.isCaseSensitive is used
+  def trySubset(keyPrefix: String, retainKeyPrefix: Boolean = false): Try[Transform] //retains ordering
+  def tryInvertCaseSensitive: Try[Transform] //changes the case sensitivity to the opposite of this.isCaseSensitive
+  def tryMerge(that: Transform): Try[Transform] //appends only key/value pairs from that which don't already exist in this - this.isCaseSensitive is used
 }
 /*
 This Scala file is free software: you can redistribute it and/or

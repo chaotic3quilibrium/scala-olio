@@ -1,5 +1,7 @@
+import org.scalaolio.configuration._
+
 val nexus1 =
-  Nexus(
+  Nexus.tryApply(
       "Root"
     , List(
           "CommandLineArgs."                //things which must be calculated by the launching script; ex: web service's server's host name and port
@@ -18,7 +20,7 @@ val transformCommandLineArgs =
     )
   )
 val nexus2 =
-  nexus1.get.addOrReplace(Nexus.TransformNamed(transformCommandLineArgs.get, "CommandLineArgs.").get)
+  nexus1.get.tryAddOrReplace(Nexus.TransformNamed.tryApply(transformCommandLineArgs.get, "CommandLineArgs.").get)
 val nexusTransformAsOfNow2 =
   nexus2.get.currentTransformDateTimeStamped
 val transformAppHost =
@@ -33,7 +35,7 @@ val transformAppHost =
     )
   )
 val nexus3 =
-  nexus2.get.addOrReplace(Nexus.TransformNamed(transformAppHost.get, """app/conf/config.json - AppHost.""").get)
+  nexus2.get.tryAddOrReplace(Nexus.TransformNamed.tryApply(transformAppHost.get, """app/conf/config.json - AppHost.""").get)
 val nexusTransformAsOfNow3 =
   nexus3.get.currentTransformDateTimeStamped
 val transformJdbcDatabase =
@@ -51,12 +53,12 @@ val transformJdbcDatabase =
     )
   )
 val nexus4 =
-  nexus3.get.addOrReplace(Nexus.TransformNamed(transformJdbcDatabase.get, "config.json - JdbcDatabase").get)
+  nexus3.get.tryAddOrReplace(Nexus.TransformNamed.tryApply(transformJdbcDatabase.get, "config.json - JdbcDatabase").get)
 val nexusTransformAsOfNow4 =
   nexus4.get.currentTransformDateTimeStamped
-val subset =
-  nexus4.get.subset("")
+val trySubset =
+  nexus4.get.trySubset("")
 val valueHost =
-  subset.get.valueTyped.string("CommandLineArgs.host.name")
+  trySubset.get.valueTyped.tryString("CommandLineArgs.host.name")
 val valueInterface =
-  subset.get.valueTyped.string("readOnly.akka.service.admin.interface")
+  trySubset.get.valueTyped.tryString("readOnly.akka.service.admin.interface")

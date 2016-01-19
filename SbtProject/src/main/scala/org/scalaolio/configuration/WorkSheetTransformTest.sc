@@ -1,4 +1,5 @@
-  val list1 =
+import org.scalaolio.configuration._
+val list1 =
     List(
         "foo" -> "bar"
       , "Foo" -> ""
@@ -7,7 +8,7 @@
     Transform(list1, false)
 
   val transform2 =
-    ValueTypedMap(
+    ValueTypedMap.tryApply(
         Map(
             "sn" -> "Situation Normal"
           , "aFu" -> "All Fuxxed Up"
@@ -33,14 +34,14 @@
     )
   val transform3 =
     Transform(list3)
-  val csPort = transform3.get.valueTypedMap.int("startup.controlServicePort")
+  val csPort = transform3.get.valueTypedMap.tryInt("startup.controlServicePort")
 
   val transform3Rebase =
     transform3.get.rebase("Rebase.")
   val transform3Subset =
-    transform3.get.subset("startup.")
+    transform3.get.trySubset("startup.")
   val transform3RebaseSubset =
-    transform3Rebase.subset("Rebase.startup.")
+    transform3Rebase.trySubset("Rebase.startup.")
   val isCaseSensitive4to6 = false
   val list4 =
     List(
@@ -81,32 +82,32 @@
   val transform6 =
     Transform(list6, isCaseSensitive4to6)
   val transform4Merge4 =
-    transform4.get.merge(transform4.get)
+    transform4.get.tryMerge(transform4.get)
   val transform5Merge5 =
-    transform5.get.merge(transform5.get)
+    transform5.get.tryMerge(transform5.get)
   val transform6Merge6 =
-    transform6.get.merge(transform6.get)
+    transform6.get.tryMerge(transform6.get)
   val transform4InvertCaseSensitive =
-    transform4.get.invertCaseSensitive.get
+    transform4.get.tryInvertCaseSensitive.get
   val valueTypedMap5 =
     transform5.get.valueTypedMap
   val valueTypedMap5InvertKeyCaseSensitive =
-    transform5.get.valueTypedMap.invertKeyCaseSensitive().get
+    transform5.get.valueTypedMap.tryInvertKeyCaseSensitive().get
 
   val transform5InvertCaseSensitive =
-    transform5.get.invertCaseSensitive.get
+    transform5.get.tryInvertCaseSensitive.get
   val transform6InvertCaseSensitive =
-    transform6.get.invertCaseSensitive.get
+    transform6.get.tryInvertCaseSensitive.get
 
   val transform4Merge5 =
-    transform4.get.merge(transform5.get)
+    transform4.get.tryMerge(transform5.get)
   val configuration5Merge4 =
-    transform5.get.merge(transform4.get)
+    transform5.get.tryMerge(transform4.get)
   val configuration4Merge6 =
-    transform4.get.merge(transform6.get)
+    transform4.get.tryMerge(transform6.get)
   val configuration6Merge4 =
-    transform6.get.merge(transform4.get)
+    transform6.get.tryMerge(transform4.get)
   val configuration5Merge6 =
-    transform5.get.merge(transform6.get)
+    transform5.get.tryMerge(transform6.get)
   val configuration6Merge5 =
-    transform6.get.merge(transform5.get)
+    transform6.get.tryMerge(transform5.get)

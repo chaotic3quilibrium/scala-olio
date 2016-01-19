@@ -19,17 +19,23 @@ import scala.util.{Failure, Success, Try}
 import org.scalaolio.collection.immutable.List_._
 
 object ValueTypedMap {
-  def apply(
+  //TODO: move to the Scala case class pattern
+  def tryApply(
       valueByKey: Map[String, String]
     , isKeyCaseSensitive: Boolean = false
-    , templateWedge: (String => String) = (string) => string
+    , tryOptionValueWedgeNonEmpty: (String, String) => Try[Option[String]] =
+        (key, value) =>
+          Success(Some(value))
+    , tryOptionValueWedgeIsEmpty: (String, Boolean) => Try[Option[String]] =
+        (key, isValueEmptyString) =>
+          Success(Some(""))
   ): Try[ValueTypedMap] =
-    validateAndConform(valueByKey, isKeyCaseSensitive).flatMap(
+    tryValidateAndConform(valueByKey, isKeyCaseSensitive).flatMap(
       valueByKeyValid =>
-        Success(new Impl(valueByKeyValid, isKeyCaseSensitive, templateWedge))
+        Success(new Impl(valueByKeyValid, isKeyCaseSensitive, tryOptionValueWedgeNonEmpty, tryOptionValueWedgeIsEmpty))
     )
 
-  def validateAndConform(
+  def tryValidateAndConform(
       valueByKey: Map[String, String]
     , isKeyCaseSensitive: Boolean
   ): Try[(Map[String, String])] =
@@ -53,18 +59,19 @@ object ValueTypedMap {
   private[ValueTypedMap] class Impl private[ValueTypedMap] (
       val valueByKey: Map[String, String]
     , val isKeyCaseSensitive: Boolean
-    , val templateWedge: (String => String)
+    , override val tryOptionValueWedgeNonEmpty: (String, String) => Try[Option[String]]
+    , override val tryOptionValueWedgeIsEmpty: (String, Boolean) => Try[Option[String]]
   ) extends ValueTypedMap {
     override def toString: String =
       s"ValueTypedMap(${valueByKey.mkString(",")},$isKeyCaseSensitive)"
 
-    def invertKeyCaseSensitive(newKeys: Option[Set[String]]): Try[ValueTypedMap] =
+    def tryInvertKeyCaseSensitive(newKeys: Option[Set[String]]): Try[ValueTypedMap] =
       if (isKeyCaseSensitive)
-        transitionToNotCaseSensitive
+        tryTransitionToNotCaseSensitive
       else
-        transitionToCaseSensitive(newKeys)
+        tryTransitionToCaseSensitive(newKeys)
 
-    def transitionToCaseSensitive(newKeys: Option[Set[String]]): Try[ValueTypedMap] =
+    def tryTransitionToCaseSensitive(newKeys: Option[Set[String]]): Try[ValueTypedMap] =
       if (!isKeyCaseSensitive)
         newKeys match {
           case Some(newKeysGet) =>
@@ -72,24 +79,24 @@ object ValueTypedMap {
               newKeysGet.toList.map(_.toLowerCase).filterDupes
             if (dupesLowerCase.isEmpty)
               if (distinctLowerCase.toSet == valueByKey.keySet)
-                ValueTypedMap(newKeysGet.map(key => (key, valueByKey(key.toLowerCase))).toMap, isKeyCaseSensitive = true)
+                ValueTypedMap.tryApply(newKeysGet.map(key => (key, valueByKey(key.toLowerCase))).toMap, isKeyCaseSensitive = true)
               else
                 //TODO: elaborate the diff
                 Failure(new IllegalStateException(s"when newKeys isDefined and following the toLowerCase conversion, it must be equal to valueByKey.keySet"))
             else
               Failure(new IllegalStateException(s"when newKeys isDefined and following the toLowerCase conversion, it must not have duplicates [${dupesLowerCase.map(_._1).mkString(",")}]"))
           case None =>
-            ValueTypedMap(valueByKey, isKeyCaseSensitive = true) //no new keys provided, reuse the existing (all-lower-case) keys
+            ValueTypedMap.tryApply(valueByKey, isKeyCaseSensitive = true) //no new keys provided, reuse the existing (all-lower-case) keys
         }
       else
         Success(this) //isKeyCaseSensitive is already true, nothing to do
 
-    def transitionToNotCaseSensitive: Try[ValueTypedMap] =
+    def tryTransitionToNotCaseSensitive: Try[ValueTypedMap] =
       if (isKeyCaseSensitive) {
         val (_, dupesLowerCase) =
           valueByKey.keySet.toList.map(_.toLowerCase).filterDupes
         if (dupesLowerCase.isEmpty)
-          ValueTypedMap(valueByKey.map(keyAndValue => (keyAndValue._1.toLowerCase, keyAndValue._2)), isKeyCaseSensitive = false)
+          ValueTypedMap.tryApply(valueByKey.map(keyAndValue => (keyAndValue._1.toLowerCase, keyAndValue._2)), isKeyCaseSensitive = false)
         else
           Failure(new IllegalStateException(s"following the toLowerCase conversion, valueByKey.keySet must not have duplicates [${dupesLowerCase.map(_._1).mkString(",")}]"))
       }
@@ -99,33 +106,9 @@ object ValueTypedMap {
 }
 
 trait ValueTypedMap extends ValueTyped {
-  def valueByKey: Map[String, String] //key always nonEmpty, value associated with key may be isEmpty or nonEmpty
-  def isKeyCaseSensitive: Boolean //if false, valueByKey.keySet will all be force converted toLowerCase
-  def templateWedge: (String => String)
-
-  def invertKeyCaseSensitive(newKeys: Option[Set[String]] = None): Try[ValueTypedMap]
-  def transitionToCaseSensitive(newKeys: Option[Set[String]] = None): Try[ValueTypedMap]
-  def transitionToNotCaseSensitive: Try[ValueTypedMap]
-
-  def fromStringToTyped[A](
-      key: String
-    , parse: String => Try[A]
-    , emptyValueStringHasMeaning: Boolean = false
-    , emptyValueStringMeans: () => A  //only relevant if emptyValueStringHasMeaning is true
-  ): Try[A] =
-    Try(valueByKey(if (isKeyCaseSensitive) key else key.toLowerCase)).flatMap(
-      value => {
-        val valueNew =
-          templateWedge(value)
-        if (valueNew.nonEmpty)
-          parse(valueNew)
-        else
-          if (emptyValueStringHasMeaning)
-            Success(emptyValueStringMeans.apply())
-          else
-            Failure(new IllegalStateException(s"since emptyValueStringHasMeaning is false, key [$key] must not return value of empty String"))
-      }
-    )
+  def tryInvertKeyCaseSensitive(newKeys: Option[Set[String]] = None): Try[ValueTypedMap]
+  def tryTransitionToCaseSensitive(newKeys: Option[Set[String]] = None): Try[ValueTypedMap]
+  def tryTransitionToNotCaseSensitive: Try[ValueTypedMap]
 }
 /*
 This Scala file is free software: you can redistribute it and/or
