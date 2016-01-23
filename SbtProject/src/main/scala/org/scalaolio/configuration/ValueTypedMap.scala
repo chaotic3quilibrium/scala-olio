@@ -79,14 +79,14 @@ object ValueTypedMap {
               newKeysGet.toList.map(_.toLowerCase).filterDupes
             if (dupesLowerCase.isEmpty)
               if (distinctLowerCase.toSet == valueByKey.keySet)
-                ValueTypedMap.tryApply(newKeysGet.map(key => (key, valueByKey(key.toLowerCase))).toMap, isKeyCaseSensitive = true)
+                ValueTypedMap.tryApply(newKeysGet.map(key => (key, valueByKey(key.toLowerCase))).toMap, isKeyCaseSensitive = true, tryOptionValueWedgeNonEmpty, tryOptionValueWedgeIsEmpty)
               else
                 //TODO: elaborate the diff
                 Failure(new IllegalStateException(s"when newKeys isDefined and following the toLowerCase conversion, it must be equal to valueByKey.keySet"))
             else
               Failure(new IllegalStateException(s"when newKeys isDefined and following the toLowerCase conversion, it must not have duplicates [${dupesLowerCase.map(_._1).mkString(",")}]"))
           case None =>
-            ValueTypedMap.tryApply(valueByKey, isKeyCaseSensitive = true) //no new keys provided, reuse the existing (all-lower-case) keys
+            ValueTypedMap.tryApply(valueByKey, isKeyCaseSensitive = true, tryOptionValueWedgeNonEmpty, tryOptionValueWedgeIsEmpty) //no new keys provided, reuse the existing (all-lower-case) keys
         }
       else
         Success(this) //isKeyCaseSensitive is already true, nothing to do
@@ -96,7 +96,7 @@ object ValueTypedMap {
         val (_, dupesLowerCase) =
           valueByKey.keySet.toList.map(_.toLowerCase).filterDupes
         if (dupesLowerCase.isEmpty)
-          ValueTypedMap.tryApply(valueByKey.map(keyAndValue => (keyAndValue._1.toLowerCase, keyAndValue._2)), isKeyCaseSensitive = false)
+          ValueTypedMap.tryApply(valueByKey.map(keyAndValue => (keyAndValue._1.toLowerCase, keyAndValue._2)), isKeyCaseSensitive = false, tryOptionValueWedgeNonEmpty, tryOptionValueWedgeIsEmpty)
         else
           Failure(new IllegalStateException(s"following the toLowerCase conversion, valueByKey.keySet must not have duplicates [${dupesLowerCase.map(_._1).mkString(",")}]"))
       }

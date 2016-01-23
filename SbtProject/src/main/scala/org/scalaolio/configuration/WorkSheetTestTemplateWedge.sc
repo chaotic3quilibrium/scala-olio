@@ -1,5 +1,8 @@
 import scala.util.{Failure, Success, Try}
-import org.scalaolio.configuration.{Transform, Nexus}
+//
+import org.scalaolio.configuration.{ValueTypedMap, ValueTyped, Transform, Nexus}
+import org.scalaolio.java.lang.String_._
+//
 val tryNexusClean =
   Nexus.tryApply(
       "WorkSheetTestTemplateWedge"
@@ -10,17 +13,25 @@ val tryNexusClean =
         , "DATA_STORE"
       )
     //, templateProfile = None
-    , optionTemplateWedgeKeyExceptionResolver =
-      Some(
-        (subset, key, valueSanTemplatePrefix) => {
-          val prefix =
-            key.takeWhile(_ != '.')
-          if (prefix.nonEmpty)
-            subset.nexus.currentTransformDateTimeStamped.transform.valueTypedMap.valueByKey.get(prefix + "." + valueSanTemplatePrefix)
-          else
-            None
-        }
-      )
+      , optionValueWedgeNonEmptyTemplateExceptionResolver =
+          Some(
+            (subset, wedgeKeyAbsolute, templateKey, wedgeValueSanTemplatePrefix) => {
+              def recursive(prefixPathRemaining: List[String]): Option[String] =
+                if (prefixPathRemaining.isEmpty)
+                  None
+                else {
+                  val keyResolved =
+                    s"${prefixPathRemaining.mkString(".")}.$templateKey"
+                  val optionValue =
+                    subset.nexus.currentTransformDateTimeStamped.transform.valueTypedMap.valueByKey.get(keyResolved)
+                  if (optionValue.isDefined)
+                    optionValue
+                  else
+                    recursive(prefixPathRemaining.reverse.tail.reverse)
+                }
+              recursive(wedgeKeyAbsolute.splitLiterally("."))
+            }
+          )
   )
 def tryAddOrUpdateToNexus(
     tryNexus: Try[Nexus]
@@ -31,13 +42,12 @@ def tryAddOrUpdateToNexus(
     nexus <-
       tryNexus
     transform <-
-      Transform(keyAndValuesPrefixed)
+    ValueTypedMap.tryApply(keyAndValuesPrefixed.toMap).map(Transform(_))
     transformNamed <-
       Nexus.TransformNamed.tryApply(transform, sourceName)
     nexusNew <-
       nexus.tryAddOrReplace(transformNamed)
   } yield nexusNew
-
 val tryNexusAddedCommandLineArgs =
   tryAddOrUpdateToNexus(
       tryNexusClean
@@ -62,6 +72,19 @@ val tryNexusAddedServerAppConf =
     )
     , "SERVER_APP_CONF"
   )
+val tryNexusAddedDataStore =
+  tryAddOrUpdateToNexus(
+    tryNexusAddedServerAppConf
+    , List(
+        "datastore.akka.spray.ssl.enabledCipherSuites" -> "0,1,2,3,1"
+      , "datastore.akka.spray.ssl.enabled" -> "true"
+      , "datastore.akka.spray.ssl.playerByJerseyNumber" -> "66->Jim.O'Flaherty,65->Mel.O'Flaherty,10->Brian.Score"
+      , "merged.akka.spray.ssl.enabledCipherSuites" -> "0,1,2,3,1"
+      , "merged.akka.spray.ssl.enabled" -> "true"
+      , "merged.akka.spray.ssl.playerByJerseyNumber" -> "66->Jim.O'Flaherty,65->Mel.O'Flaherty,10->Brian.Score"
+    )
+    , "DATA_STORE"
+  )
 def toMap(tryNexus: Try[Nexus], keyPrefix: String = "", retainKeyPrefix: Boolean = false): Try[Map[String, String]] =
   for {
     nexus <-
@@ -72,7 +95,7 @@ def toMap(tryNexus: Try[Nexus], keyPrefix: String = "", retainKeyPrefix: Boolean
 val tryContent =
   for {
     valueByKey <-
-      toMap(tryNexusAddedServerAppConf)
+      toMap(tryNexusAddedDataStore)
   } yield {
     for {
       (key, value) <-
@@ -86,3 +109,33 @@ val contentAsString =
     case Failure(e) =>
       s"failed to produce content - ${e.getMessage}"
   }
+implicit def parser: String => Try[Option[String]] =
+  ValueTyped.Parsers.Classes.Singles.parseString
+implicit def parserMapIntString: (String, String) => Try[Option[(Int, (String, String))]] =
+  (stringJerseyNumber, stringPlayerName) =>
+    ValueTyped.Parsers.Primitives.parseInt(stringJerseyNumber).flatMap(
+      optionIntJerseyNumber =>
+        Success(optionIntJerseyNumber.map((_, stringPlayerName.spanSansSeparator("."))))
+    )
+val fetchList =
+  for {
+    nexus <-
+      tryNexusAddedDataStore
+    subsetAkkaSpraySsl <-
+      nexus.trySubset("merged.akka.spray.ssl.")
+    optionEnabledCipherSuitesList <-
+      subsetAkkaSpraySsl.valueTyped.Classes.Collections.tryOptionList("enabledCipherSuites")
+    optionEnabledCipherSuitesSet <-
+      //subsetAkkaSpraySsl.valueTyped.Classes.Collections.tryOptionSet("enabledCipherSuites")
+      subsetAkkaSpraySsl.valueTyped.Classes.Collections.tryOptionSet[Int]("enabledCipherSuites")(ValueTyped.Parsers.Primitives.parseInt)
+    optionPlayerByJerseyNumberMap <-
+      subsetAkkaSpraySsl.valueTyped.Classes.Collections.tryOptionMap("playerByJerseyNumber")
+    optionEnabled <-
+      subsetAkkaSpraySsl.valueTyped.Primitives.tryOptionBoolean("enabled")//(ValueTyped.Parsers.Primitives.parseBoolean)
+    subsetAkkaServiceSaas <-
+      nexus.trySubset("merged.akka.service.saas.")
+    optionPort <-
+      subsetAkkaServiceSaas.valueTyped.Primitives.tryOptionInt("port")
+  } yield (optionEnabledCipherSuitesList, optionEnabledCipherSuitesSet, optionPlayerByJerseyNumberMap, optionEnabled, optionPort)
+    //subset.valueTyped.tryList[String]("enabledCipherSuites")
+    //subset.valueTyped.tryList("enabledCipherSuites")(parse)

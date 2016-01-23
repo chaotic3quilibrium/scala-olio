@@ -159,7 +159,7 @@ class Subset private[Subset] (
   def toMap: Map[String, String] =
     transformDateTimeStamped.transform.valueTypedMap.valueByKey.keySet.map(
       key =>
-        (key, valueTyped.tryString(key).getOrElse("<valueTyped.string(...) error>"))
+        (key, valueTyped.Classes.Singles.tryOptionString(key).getOrElse(Some("<valueTyped.string(...) Failure>")).getOrElse("valueTyped.string(...) Success - None>"))
     ).toMap
 
   def trySubset(

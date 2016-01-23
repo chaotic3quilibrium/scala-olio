@@ -32,15 +32,15 @@ object Transform {
         Success(new Impl(valueTypedMapAndKeysOrdered._1, valueTypedMapAndKeysOrdered._2))
     )
 
-  def apply(
-      keyAndValues: List[(String, String)]
-    , isKeyCaseSensitive: Boolean = false
-  ): Try[Transform] = {
-    ValueTypedMap.tryApply(keyAndValues.toMap, isKeyCaseSensitive).flatMap(
-      valueTypedMap =>
-        Transform(valueTypedMap, keyAndValues.map(_._1))
-    )
-  }
+//  def apply(
+//      keyAndValues: List[(String, String)]
+//    , isKeyCaseSensitive: Boolean = false
+//  ): Try[Transform] = {
+//    ValueTypedMap.tryApply(keyAndValues.toMap, isKeyCaseSensitive).flatMap(
+//      valueTypedMap =>
+//        Transform(valueTypedMap, keyAndValues.map(_._1))
+//    )
+//  }
 
   def validateAndConform(
       valueTypedMap: ValueTypedMap
@@ -70,7 +70,7 @@ object Transform {
             if (valueTypedMap.isKeyCaseSensitive)
               Success((valueTypedMap, keysOrdered))
             else
-              ValueTypedMap.tryApply(valueTypedMap.valueByKey.map(tuple2 => (tuple2._1.toLowerCase, tuple2._2)), isKeyCaseSensitive = false).flatMap(
+              ValueTypedMap.tryApply(valueTypedMap.valueByKey.map(tuple2 => (tuple2._1.toLowerCase, tuple2._2)), isKeyCaseSensitive = false, valueTypedMap.tryOptionValueWedgeNonEmpty, valueTypedMap.tryOptionValueWedgeIsEmpty).flatMap(
                 valueTypedMapGet =>
                   Success((valueTypedMapGet, keysOrdered))
               )
@@ -102,6 +102,8 @@ object Transform {
           ValueTypedMap.tryApply(
               valueTypedMap.valueByKey.map(keyAndValue => (if (valueTypedMap.isKeyCaseSensitive) insertKeyPrefix else insertKeyPrefix.toLowerCase + keyAndValue._1, keyAndValue._2))
             , valueTypedMap.isKeyCaseSensitive
+            , valueTypedMap.tryOptionValueWedgeNonEmpty
+            , valueTypedMap.tryOptionValueWedgeIsEmpty
           ).get
         , keysOrdered.map(insertKeyPrefix + _)
       )
@@ -145,6 +147,8 @@ object Transform {
           ValueTypedMap.tryApply(
               keyAndValues.map(_._2).toMap
             , valueTypedMap.isKeyCaseSensitive
+            , valueTypedMap.tryOptionValueWedgeNonEmpty
+            , valueTypedMap.tryOptionValueWedgeIsEmpty
           ).flatMap(
             mapping =>
               Success(new Impl(mapping, keyAndValues.map(_._1)))
@@ -195,7 +199,7 @@ object Transform {
                   keysOrderedAddLowerCase.map(key => (key, thatNew.valueTypedMap.valueByKey(key))).toMap
                 (keysOrderedAdd, valueByKeyAdd)
               }
-            ValueTypedMap.tryApply(valueTypedMap.valueByKey ++ valueByKeyAdd, valueTypedMap.isKeyCaseSensitive).flatMap(
+            ValueTypedMap.tryApply(valueTypedMap.valueByKey ++ valueByKeyAdd, valueTypedMap.isKeyCaseSensitive, valueTypedMap.tryOptionValueWedgeNonEmpty, valueTypedMap.tryOptionValueWedgeIsEmpty).flatMap(
               mapping =>
                 Success(new Impl(mapping, keysOrdered ++ keysOrderedAdd))
             )

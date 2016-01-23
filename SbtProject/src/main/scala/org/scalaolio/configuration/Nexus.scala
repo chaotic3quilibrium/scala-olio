@@ -182,12 +182,14 @@ class Nexus private[Nexus] (
         val prefix =
           getClass.fullName
         Transform(
-          List(
-              s"$prefix.name" -> name
-            , s"$prefix.transformNamedNames" -> transformNamedNames.mkString(",")
-            , s"$prefix.utcCreated" -> Nexus.defaultISODateTimeFormat.print(utcCreated)
-          )
-        ).get
+          ValueTypedMap.tryApply(
+            Map(
+                s"$prefix.name" -> name
+              , s"$prefix.transformNamedNames" -> transformNamedNames.mkString(",")
+              , s"$prefix.utcCreated" -> Nexus.defaultISODateTimeFormat.print(utcCreated)
+            )
+          ).get
+        )
       }
       Nexus.TransformNamed.tryApply(transform, Nexus.transformedNameRootName).get
     }
