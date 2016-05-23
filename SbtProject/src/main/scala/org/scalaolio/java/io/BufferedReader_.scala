@@ -24,14 +24,14 @@ object BufferedReader_ {
 
   def readAsListString(from: BufferedReader): Try[List[String]] = {
     @tailrec
-    def recursive(accumulator: List[String]): List[String] = {
+    def recursive(accumulator: List[String] = Nil): List[String] = {
       val line = from.readLine()
       if (line == null)
         accumulator
       else
         recursive(line :: accumulator)
     }
-    Try(recursive(Nil).reverse)
+    Try(recursive().reverse)
   }
 }
 /*

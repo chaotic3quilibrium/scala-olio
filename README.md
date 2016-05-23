@@ -1,4 +1,4 @@
 scala-olio
 ==========
 
-Catch all for miscellaneous Scala additiions/fixes
+Catch all for miscellaneous Scala additions/fixes

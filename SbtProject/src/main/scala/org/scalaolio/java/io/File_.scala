@@ -17,13 +17,37 @@ package org.scalaolio.java.io
 
 import scala.util.Try
 
-import java.io.{PrintWriter, BufferedWriter, FileWriter, File}
+import java.io._
 
 import org.scalaolio.java.lang.AutoCloseable_
 
 object File_ {
   val defaultBufferSize: Int =
     org.scalaolio.java.io.defaultBufferSize
+
+  def readAsString(
+      location: File
+    , bufferSize: Int = defaultBufferSize
+  ): Try[String] =
+    AutoCloseable_.using(() => new FileReader(location)) {
+      fileReader =>
+        AutoCloseable_.using(() => new BufferedReader(fileReader, bufferSize)) {
+          bufferedReader =>
+            Reader_.readAsString(bufferedReader, bufferSize)
+        }
+    }
+
+  def readAsListString(
+      location: File
+    , bufferSize: Int = defaultBufferSize
+  ): Try[List[String]] =
+    AutoCloseable_.using(() => new FileReader(location)) {
+      fileReader =>
+        AutoCloseable_.using(() => new BufferedReader(fileReader, bufferSize)) {
+          bufferedReader =>
+            BufferedReader_.readAsListString(bufferedReader)
+        }
+    }
 
   def writeAsString(
       location: File

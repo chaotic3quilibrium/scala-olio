@@ -31,7 +31,7 @@ object Reader_ {
     //read data out of stream
     @tailrec
     def recursive(
-        accumulator: List[(Array[Char], Int)]
+        accumulator: List[(Array[Char], Int)] = Nil
     ): List[(Array[Char], Int)] = {
       val buffer = new Array[Char](bufferSize)
       //- from.read can fetch less than
@@ -63,7 +63,7 @@ object Reader_ {
       }
       else
         Array.emptyCharArray
-    Success(flatten(recursive(Nil).reverse).mkString)
+    Success(flatten(recursive().reverse).mkString)
   }
 }
 /*

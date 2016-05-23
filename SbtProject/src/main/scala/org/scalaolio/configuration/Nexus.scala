@@ -23,7 +23,7 @@ import org.scalaolio.java.lang.String_._
 
 object Nexus {
   object TransformNamed {
-    def apply(
+    def tryApply(
         transform: Transform
       , name: String
       ): Try[TransformNamed] =
@@ -36,7 +36,7 @@ object Nexus {
   )
 
   object TransformDateTimeStamped {
-    def apply(
+    def tryApply(
         transform: Transform
       , utcDateTimeStamp: DateTime
     ): Try[TransformDateTimeStamped] =
@@ -54,9 +54,9 @@ object Nexus {
     val DEFAULT_CLOSE = "]"
 
     def default: TemplateProfile =
-      TemplateProfile().get
+      TemplateProfile.tryApply().get
 
-    def apply(
+    def tryApply(
         prefix: String = DEFAULT_PREFIX
       , open: String = DEFAULT_OPEN
       , close: String = DEFAULT_CLOSE
@@ -95,7 +95,7 @@ object Nexus {
         if (opens.size == closes.size) {
           val openAndCloses =
             opens.zip(closes)
-          if (!openAndCloses.exists(onc => onc._1 > onc._2))
+          if (!openAndCloses.exists(onc => onc._1 > onc._2)) //equals should be impossible if preconditions in validate hold
             (truncated, openAndCloses)
           else
             (truncated, Nil) //at some point an open followed its close
@@ -131,19 +131,21 @@ object Nexus {
   }
 
   val defaultISODateTimeFormat = org.joda.time.format.ISODateTimeFormat.basicDateTime
-  val TransformedNameRootName = "Nexus.TransformedName.Root"
+  val transformedNameRootName = "Nexus.TransformedName.Root"
 
-  def apply(
+  def tryApply(
       name: String
     , transformNamedNames: List[String]
     , templateProfile: Option[TemplateProfile] = Some(TemplateProfile.default)
+    , optionValueWedgeNonEmptyTemplateExceptionResolver: Option[(Subset, String, String, String) => Option[String]] = None //Some((subset, wedgeKeyAbsolute, templateKey, wedgeValueSanTemplatePrefix))
+    , optionValueWedgeIsEmptyResolver: Option[(Subset, String, Boolean) => Option[String]] = None
   ): Try[Nexus] =
-    validateAndConform(name, transformNamedNames, templateProfile).flatMap(
+    tryValidateAndConform(name, transformNamedNames, templateProfile).flatMap(
       nameTransformNamedNamesAndTemplateProfile =>
-        Success(new Nexus(nameTransformNamedNamesAndTemplateProfile._1, nameTransformNamedNamesAndTemplateProfile._2, nameTransformNamedNamesAndTemplateProfile._3))
+        Success(new Nexus(nameTransformNamedNamesAndTemplateProfile._1, nameTransformNamedNamesAndTemplateProfile._2, nameTransformNamedNamesAndTemplateProfile._3, optionValueWedgeNonEmptyTemplateExceptionResolver, optionValueWedgeIsEmptyResolver))
     )
 
-  def validateAndConform(
+  def tryValidateAndConform(
       name: String
     , transformNamedNames: List[String] //must be distinct, is case insensitive (all keys are internally forced to lower case) and is ordered least to most priority; i.e. for each item, it overrides what is left of it and is overridden by whatever, if anything exists to its right
     , templateProfile: Option[TemplateProfile]
@@ -164,30 +166,34 @@ class Nexus private[Nexus] (
     val name: String
   , val transformNamedNames: List[String]
   , val templateProfile: Option[Nexus.TemplateProfile]
+  , val optionValueWedgeNonEmptyTemplateExceptionResolver: Option[(Subset, String, String, String) => Option[String]]
+  , val optionValueWedgeIsEmptyResolver: Option[(Subset, String, Boolean) => Option[String]]
 ) {
   val utcCreated: DateTime =
     new DateTime(DateTimeZone.UTC)
 
   private val transformNamedNamesLowerCase =
-    Nexus.TransformedNameRootName.toLowerCase :: transformNamedNames.map(_.toLowerCase)
+    Nexus.transformedNameRootName.toLowerCase :: transformNamedNames.map(_.toLowerCase)
 
   private val utcCreatedAndTransformNamedByTransformNamedNameLock = new Object //always synchronize on utcCreatedAndTransformNamedByTransformNamedNameLock (and not on utcCreatedAndTransformNamedByTransformNamedName)
   private var utcCreatedAndTransformNamedByTransformNamedName: Map[String, Option[(Nexus.TransformNamed, DateTime)]] = {
-    def TransformedNameRoot: Nexus.TransformNamed = {
+    def transformedNameRoot: Nexus.TransformNamed = {
       val transform = {
         val prefix =
           getClass.fullName
         Transform(
-          List(
-              s"$prefix.name" -> name
-            , s"$prefix.transformNamedNames" -> transformNamedNames.mkString(",")
-            , s"$prefix.utcCreated" -> Nexus.defaultISODateTimeFormat.print(utcCreated)
-          )
-        ).get
+          ValueTypedMap.tryApply(
+            Map(
+                s"$prefix.name" -> name
+              , s"$prefix.transformNamedNames" -> transformNamedNames.mkString(",")
+              , s"$prefix.utcCreated" -> Nexus.defaultISODateTimeFormat.print(utcCreated)
+            )
+          ).get
+        )
       }
-      Nexus.TransformNamed(transform, Nexus.TransformedNameRootName).get
+      Nexus.TransformNamed.tryApply(transform, Nexus.transformedNameRootName).get
     }
-    (    (Nexus.TransformedNameRootName.toLowerCase, Some((TransformedNameRoot, utcCreated)))
+    (    (Nexus.transformedNameRootName.toLowerCase, Some((transformedNameRoot, utcCreated)))
       :: transformNamedNames.map(key => (key.toLowerCase, None))
     ).toMap
   }
@@ -197,7 +203,7 @@ class Nexus private[Nexus] (
     utcCreatedAndTransformNamedByTransformNamedNameLock.synchronized {
       utcCreatedAndTransformNamedByTransformNamedName(transformNamedNamesLowerCase.head) match {
         case Some(transformedNameAndDateTime) =>
-          Nexus.TransformDateTimeStamped(transformedNameAndDateTime._1.transform, transformedNameAndDateTime._2).get
+          Nexus.TransformDateTimeStamped.tryApply(transformedNameAndDateTime._1.transform, transformedNameAndDateTime._2).get
         case None =>
           throw new IllegalStateException("should not EVER get here, given utcCreatedAndTransformNamedByTransformNamedName properly initialized")
       }
@@ -209,7 +215,7 @@ class Nexus private[Nexus] (
     (nameLowerCase != transformNamedNamesLowerCase.head) && transformNamedNamesLowerCase.contains(nameLowerCase)
   }
 
-  private def add(transformNamed: Nexus.TransformNamed, isMergeAndOverride: Boolean): Try[Nexus] = //can fail if a name is used which is equal to the value in TransformedNameRootName or does not exist in TransformNamedNamesOrderedFromLeastPriority
+  private def tryAdd(transformNamed: Nexus.TransformNamed, isMergeAndOverride: Boolean): Try[Nexus] = //can fail if a name is used which is equal to the value in TransformedNameRootName or does not exist in TransformNamedNamesOrderedFromLeastPriority
     if (isNameValid(transformNamed.name))
       utcCreatedAndTransformNamedByTransformNamedNameLock.synchronized {
         val utcDateTime = {
@@ -224,7 +230,7 @@ class Nexus private[Nexus] (
           if (isMergeAndOverride)
             utcCreatedAndTransformNamedByTransformNamedName(transformNamed.name.toLowerCase) match {
               case Some(transformedNamedAndDateTime) =>
-                Nexus.TransformNamed(transformNamed.transform.merge(transformedNamedAndDateTime._1.transform).get, transformNamed.name).get
+                Nexus.TransformNamed.tryApply(transformNamed.transform.tryMerge(transformedNamedAndDateTime._1.transform).get, transformNamed.name).get
               case None =>
                 transformNamed
             }
@@ -237,11 +243,11 @@ class Nexus private[Nexus] (
     else
       Failure(new IllegalArgumentException(s"transformNamed.name [${transformNamed.name}] must be one of transformNamedNames [${transformNamedNames.mkString(",")}]"))
 
-  def addOrReplace(transformNamed: Nexus.TransformNamed): Try[Nexus] =
-    add(transformNamed, isMergeAndOverride = false)
+  def tryAddOrReplace(transformNamed: Nexus.TransformNamed): Try[Nexus] =
+    tryAdd(transformNamed, isMergeAndOverride = false)
 
-  def addOrMergeAndOverride(transformNamed: Nexus.TransformNamed): Try[Nexus] =
-    add(transformNamed, isMergeAndOverride = true)
+  def tryAddOrMergeAndOverride(transformNamed: Nexus.TransformNamed): Try[Nexus] =
+    tryAdd(transformNamed, isMergeAndOverride = true)
 
   def currentTransformDateTimeStamped: Nexus.TransformDateTimeStamped = {
     def compute(transformNamedAndDateTimes: List[(Nexus.TransformNamed, DateTime)]): Nexus.TransformDateTimeStamped = {
@@ -251,7 +257,7 @@ class Nexus private[Nexus] (
         else {
           val (transformNamed, dateTime) = remaining.head
           val transformNew =
-            transformNamed.transform.merge(accumulator._1).get
+            transformNamed.transform.tryMerge(accumulator._1).get
           val dateTimeNew =
             if (dateTime.isAfter(accumulator._2))
               dateTime
@@ -262,7 +268,7 @@ class Nexus private[Nexus] (
       }
       val temp =
         recursive(transformNamedAndDateTimes.tail, (transformNamedAndDateTimes.head._1.transform, transformNamedAndDateTimes.head._2))
-      Nexus.TransformDateTimeStamped(temp._1, temp._2).get
+      Nexus.TransformDateTimeStamped.tryApply(temp._1, temp._2).get
     }
     var mapDefined: Map[String, Option[(Nexus.TransformNamed, DateTime)]] =
       Map()
@@ -288,11 +294,11 @@ class Nexus private[Nexus] (
     }
   }
 
-  def subset(
+  def trySubset(
       keyPrefix: String
     , retainKeyPrefix: Boolean = false
   ): Try[Subset] =
-    Subset(this, keyPrefix, retainKeyPrefix)
+    Subset.tryApply(this, keyPrefix, retainKeyPrefix)
 }
 /*
 This Scala file is free software: you can redistribute it and/or
