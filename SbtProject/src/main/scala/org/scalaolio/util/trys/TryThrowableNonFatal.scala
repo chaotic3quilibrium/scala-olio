@@ -27,7 +27,7 @@ object TryThrowableNonFatal extends TryObjectBase[Throwable] {
   def successT[V]: V => TryThrowableNonFatal[V] =
     SuccessThrowableNonFatal(_)
 
-  def failureT[V]: (Throwable, List[(FailureBase[Throwable, Any], Option[Serializable])]) => TryThrowableNonFatal[V] =
+  def failureT[V]: (Throwable, List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]) => TryThrowableNonFatal[V] =
     (t, failureEnclosingContext) =>
       FailureThrowableNonFatal(t, failureEnclosingContext)
 
@@ -72,7 +72,7 @@ final case class SuccessThrowableNonFatal[+V](override val v: V) extends TryThro
     tryObjectBase.failureT[Throwable](new UnsupportedOperationException("Success.failed"), Nil)
 }
 
-final case class FailureThrowableNonFatal[+V](override val t: Throwable, override val enclosingContext: List[(FailureBase[Throwable, Any], Option[Serializable])] = Nil) extends TryThrowableNonFatal[V] with FailureBase[Throwable, V] {
+final case class FailureThrowableNonFatal[+V](override val t: Throwable, override val enclosingContext: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])] = Nil) extends TryThrowableNonFatal[V] with FailureBase[Throwable, V] {
   override def transform[W](fv: V => TryBase[Throwable, W], ft: Throwable => TryBase[Throwable, W]): TryBase[Throwable, W] =
     try
       ft(t)

@@ -27,7 +27,7 @@ object TryException extends TryObjectBase[Exception] {
   def successT[V]: V => TryException[V] =
     SuccessException(_)
 
-  def failureT[V]: (Exception, List[(FailureBase[Throwable, Any], Option[Serializable])]) => TryException[V] =
+  def failureT[V]: (Exception, List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]) => TryException[V] =
     (t, failureEnclosingContext) =>
       FailureException(t, failureEnclosingContext)
 }
@@ -39,7 +39,7 @@ sealed abstract class TryException[+V] extends TryBase[Exception, V] {
 
 final case class SuccessException[+V](override val v: V) extends TryException[V] with SuccessBase[Exception, V]
 
-final case class FailureException[+V](override val t: Exception, override val enclosingContext: List[(FailureBase[Throwable, Any], Option[Serializable])] = Nil) extends TryException[V] with FailureBase[Exception, V]
+final case class FailureException[+V](override val t: Exception, override val enclosingContext: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])] = Nil) extends TryException[V] with FailureBase[Exception, V]
 /*
 This Scala file is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as

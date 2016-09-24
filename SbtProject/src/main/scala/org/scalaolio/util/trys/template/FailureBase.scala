@@ -14,11 +14,12 @@
 package org.scalaolio.util.trys.template
 
 /** Hidden implementation trait for Failure
+  *
   * @author Jim O'Flaherty
   * @since 2.11
   */
 trait FailureBase[T <: Throwable, +V] extends TryBase[T, V] {
-  def enclosingContext: List[(FailureBase[Throwable, Any], Option[Serializable])]
+  def enclosingContext: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]
 
 
   //protected def tryObjectBase: TryObjectBase[T]

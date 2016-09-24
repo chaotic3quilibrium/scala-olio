@@ -1,7 +1,8 @@
-import org.scalaolio.util.trys.TryRuntimeException
-
 import scala.util.{Failure, Try}
 
+import org.scalaolio.io.SerializableAdapter
+import org.scalaolio.io.SerializableAdapter._
+import org.scalaolio.util.trys._
 import org.scalaolio.util.trys.template._
 
 def evaluateTheRiskyThing: Int =
@@ -80,3 +81,37 @@ implicit val optionThrowableEventFunc =
 
 val tryRuntimeException2 =
   TryRuntimeException(evaluateTheRiskyThing)
+
+val tryBase: List[TryBase[_ <: Throwable, _]] =
+  List(
+      TryRuntimeException(1 + 1)
+    , TryRuntimeException(3/0)
+    , TryException(2/0)
+    , TryThrowable(1/0)
+    , TryThrowableNonFatal(0/0)
+  )
+
+val tryBasesFailureBasesOnly =
+  tryBase.zipWithIndex.filter(_._1.isFailure)
+
+val ints: java.io.Serializable =
+  5
+
+val optionInt: Option[java.io.Serializable] =
+  Some(5)
+
+val failureBases: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])] =
+  tryBasesFailureBasesOnly.map {
+    case (a, b) =>
+      val bs: Option[java.io.Serializable] =
+        Some(b) //directly using this below, unable to get the implicit conversion to engage
+      (
+          a.asInstanceOf[FailureBase[_ <: Throwable, _]]
+        //, None
+        //, Some(b) //won't compile as the implicit conversion never happens
+        //, Some(int2Integer(b)) //turning the implicit conversion explicit
+        , bs
+      )
+  }
+val failureRuntimeException =
+  FailureRuntimeException(new IllegalStateException(), failureBases)

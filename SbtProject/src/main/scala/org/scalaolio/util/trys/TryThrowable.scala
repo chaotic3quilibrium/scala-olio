@@ -24,7 +24,7 @@ object TryThrowable extends TryObjectBase[Throwable] {
   def successT[V]: V => TryThrowable[V] =
     SuccessThrowable(_)
 
-  def failureT[V]: (Throwable, List[(FailureBase[Throwable, Any], Option[Serializable])]) => TryThrowable[V] =
+  def failureT[V]: (Throwable, List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]) => TryThrowable[V] =
     (t, failureEnclosingContext) =>
       FailureThrowable(t, failureEnclosingContext)
 }
@@ -36,7 +36,7 @@ sealed abstract class TryThrowable[+V] extends TryBase[Throwable, V] {
 
 final case class SuccessThrowable[+V](override val v: V) extends TryThrowable[V] with SuccessBase[Throwable, V]
 
-final case class FailureThrowable[+V](override val t: Throwable, override val enclosingContext: List[(FailureBase[Throwable, Any], Option[Serializable])] = Nil) extends TryThrowable[V] with FailureBase[Throwable, V]
+final case class FailureThrowable[+V](override val t: Throwable, override val enclosingContext: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])] = Nil) extends TryThrowable[V] with FailureBase[Throwable, V]
 /*
 This Scala file is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as

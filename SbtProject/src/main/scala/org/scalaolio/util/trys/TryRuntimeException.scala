@@ -27,7 +27,7 @@ object TryRuntimeException extends TryObjectBase[RuntimeException] {
   def successT[V]: V => TryRuntimeException[V] =
     SuccessRuntimeException(_)
 
-  def failureT[V]: (RuntimeException, List[(FailureBase[Throwable, Any], Option[Serializable])]) => TryRuntimeException[V] =
+  def failureT[V]: (RuntimeException, List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]) => TryRuntimeException[V] =
     (t, failureEnclosingContext) =>
       FailureRuntimeException(t, failureEnclosingContext)
 }
@@ -39,7 +39,7 @@ sealed abstract class TryRuntimeException[+V] extends TryBase[RuntimeException, 
 
 final case class SuccessRuntimeException[+V](override val v: V) extends TryRuntimeException[V] with SuccessBase[RuntimeException, V]
 
-final case class FailureRuntimeException[+V](override val t: RuntimeException, override val enclosingContext: List[(FailureBase[Throwable, Any], Option[Serializable])] = Nil) extends TryRuntimeException[V] with FailureBase[RuntimeException, V]
+final case class FailureRuntimeException[+V](override val t: RuntimeException, override val enclosingContext: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])] = Nil) extends TryRuntimeException[V] with FailureBase[RuntimeException, V]
 /*
 This Scala file is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as

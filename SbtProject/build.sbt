@@ -2,9 +2,9 @@ name := "ScalaOlio"
 
 version := "1.0"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
-libraryDependencies += "org.scala-lang" % "scala-reflect"       % "2.11.7"
+libraryDependencies += "org.scala-lang" % "scala-reflect"       % "2.11.8"
 
 libraryDependencies += "org.scalatest"  % "scalatest_2.11"      % "2.1.7" % "test"
 

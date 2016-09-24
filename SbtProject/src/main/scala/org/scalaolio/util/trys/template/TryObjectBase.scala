@@ -22,7 +22,7 @@ package org.scalaolio.util.trys.template
   */
 trait TryObjectBase[T <: Throwable] {
   def successT[V]: V => TryBase[T, V]
-  def failureT[V]: (T, List[(FailureBase[Throwable, Any], Option[Serializable])]) => TryBase[T, V]
+  def failureT[V]: (T, List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]) => TryBase[T, V]
 
   protected val classT: Class[_] =
     new Throwable().getClass
@@ -60,7 +60,7 @@ trait TryObjectBase[T <: Throwable] {
     */
   def apply[V](
       vToEvaluate: => V
-    , failureEnclosingContext: List[(FailureBase[Throwable, Any], Option[Serializable])] =
+    , failureEnclosingContext: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])] =
         Nil
   ) (
       implicit failureTEvent: FailureBase[T, V] => Unit =
