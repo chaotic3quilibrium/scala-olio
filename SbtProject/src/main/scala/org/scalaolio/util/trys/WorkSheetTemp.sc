@@ -1,37 +1,42 @@
 import scala.util.{Failure, Try}
 
-import org.scalaolio.io.SerializableAdapter
-import org.scalaolio.io.SerializableAdapter._
 import org.scalaolio.util.trys._
 import org.scalaolio.util.trys.template._
 
 def evaluateTheRiskyThing: Int =
-  3/0
-  //throw new Exception()
-  //throw new Throwable()
+  //3/0
+  throw new Exception("uhoh-Exception")
+  //throw new Error("uhoh-Exception")
+  //throw new Throwable("uhoh-Throwable")
 
-val tryTemp1 =
-  Try(evaluateTheRiskyThing)
-tryTemp1.recoverWith {
-  case throwable =>
-    if (new RuntimeException().getClass.isInstance(throwable))
-      tryTemp1 //called the constructor only once
-    else
-      throw throwable //still results in being captured as Failure(Exception) as recoverWith wraps this call with it's own try which will encapsulate any NonFatal() as a Failure - completely NOT the desired behavior
-}
-
-val tryTemp2 =
-  Try(evaluateTheRiskyThing).recoverWith {
-    case throwable =>
-      if (new RuntimeException().getClass.isInstance(throwable)) {
-        println(s"Failure: ${Option(throwable.getMessage).getOrElse("<null>")}")
-        Failure(throwable) //called the constructor a second time
-      }
-      else {
-        println(s"Uncaught: ${Option(throwable.getMessage).getOrElse("<null>")}")
-        throw throwable //still results in being captured as Failure(Exception) as recoverWith wraps this call with it's own try which will encapsulate any NonFatal() as a Failure - completely NOT the desired behavior
-      }
-  }
+//val tryTemp1 =
+//  Try(evaluateTheRiskyThing)
+//tryTemp1.recoverWith {
+//  case runtimeException: RuntimeException =>
+//    println(s"Failure: ${runtimeException.getMessage}")
+//    Failure(runtimeException) //an additional instantiation
+//  case throwable: Throwable =>
+//    println(s"Uncaught: ${throwable.getMessage}")
+//    //Surprise!!! The rethrown throwable below gets
+//    //  re-caught by this Try method and
+//    //  turned into a Failure anyway! ARGH!
+//    throw throwable
+//}
+//
+//val tryTemp2 =
+//  Try(evaluateTheRiskyThing) match {
+//    case failure @ Failure(throwable) =>
+//      throwable match {
+//        case runtimeException: RuntimeException =>
+//          println(s"Failure: ${runtimeException.getMessage}")
+//          failure
+//        case _ =>
+//          println(s"Uncaught: ${throwable.getMessage}")
+//          throw throwable //this rethrow actually works
+//      }
+//    case success @ _ =>
+//      success
+//  }
 
 val tryRuntimeException1 =
   TryRuntimeException(
@@ -84,8 +89,8 @@ val tryRuntimeException2 =
 
 val tryBase: List[TryBase[_ <: Throwable, _]] =
   List(
-      TryRuntimeException(1 + 1)
-    , TryRuntimeException(3/0)
+      TryRuntimeException(1 + 1)//(failureTEventFunc, optionThrowableEventFunc)
+    , TryRuntimeException(3/0)//(failureTEventFunc, optionThrowableEventFunc)
     , TryException(2/0)
     , TryThrowable(1/0)
     , TryThrowableNonFatal(0/0)
@@ -104,11 +109,12 @@ val failureBases: List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializa
   tryBasesFailureBasesOnly.map {
     case (a, b) =>
       val bs: Option[java.io.Serializable] =
-        Some(b) //directly using this below, unable to get the implicit conversion to engage
+        Some(b) //necessary to do here as the commented out implicit conversions below never happen
       (
           a.asInstanceOf[FailureBase[_ <: Throwable, _]]
         //, None
-        //, Some(b) //won't compile as the implicit conversion never happens
+        //, Some(b) //doesn't compile - the implicit conversion never happens
+        //, Some[Serializable](b) //doesn't compile - the implicit conversion never happens
         //, Some(int2Integer(b)) //turning the implicit conversion explicit
         , bs
       )

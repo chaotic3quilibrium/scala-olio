@@ -72,7 +72,7 @@ trait TryBase [T <: Throwable, +V] {
   /** Returns the value from this `SuccessBase` or throws `FailedPreconditionTryBase` for `FailureBase`.
     */
   def v: V =
-    throw TryBase.FailedPreconditionTryBase(s"v is undefined")
+    throw TryBase.FailedPreconditionTryBase("v is undefined")
 
   /** Returns `true` if the `TryBase` is a `FailureBase`, `false` otherwise.
     */
@@ -80,7 +80,7 @@ trait TryBase [T <: Throwable, +V] {
   /** Returns `java.lang.Throwable` instance from this `FailureBase` or throws `FailedPreconditionTryBase` for `SuccessBase`.
     */
   def t: T =
-    throw TryBase.FailedPreconditionTryBase(s"t is undefined")
+    throw TryBase.FailedPreconditionTryBase("t is undefined")
 
   /** Returns the value from this `SuccessBase` or throws the exception if this is a `FailureBase`.
     */

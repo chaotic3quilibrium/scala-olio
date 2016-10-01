@@ -15,20 +15,19 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.util.trys.template
 
+import scala.reflect.ClassTag
+
 /** The `TryObjectBase` type encodes the core try/catch execution pathways in the `apply` method and also captures the companion object singleton common functionality.
   *
   * @author Jim O'Flaherty
   * @since 2.11
   */
-trait TryObjectBase[T <: Throwable] {
+abstract class TryObjectBase[T <: Throwable : ClassTag] {
   def successT[V]: V => TryBase[T, V]
   def failureT[V]: (T, List[(FailureBase[_ <: Throwable, _], Option[java.io.Serializable])]) => TryBase[T, V]
 
-  protected val classT: Class[_] =
-    new Throwable().getClass
-
   protected def isInstanceValid(t: Throwable): Boolean =
-    classT.isInstance(t)
+    true
 
   /** Attempts to constructs a descendant of `TryBase[T, V]` using the by-name parameter `vToEvaluate`.
     * - If the execution of `vToEvaluate` completes without throwing an instance of 'java.lang.Throwable':
@@ -73,7 +72,7 @@ trait TryObjectBase[T <: Throwable] {
         try
           successT(vToEvaluate)
         catch {
-          case t: Throwable if isInstanceValid(t) =>
+          case t: T if isInstanceValid(t) =>
             val failureTTemp =
               failureT[V](t.asInstanceOf[T], failureEnclosingContext)
             failureTEvent(failureTTemp.asInstanceOf[FailureBase[T, V]])
@@ -86,7 +85,7 @@ trait TryObjectBase[T <: Throwable] {
         try
           successT(vToEvaluate)
         catch {
-          case t: Throwable if isInstanceValid(t) =>
+          case t: T if isInstanceValid(t) =>
             val failureTTemp =
               failureT[V](t.asInstanceOf[T], failureEnclosingContext)
             failureTEvent(failureTTemp.asInstanceOf[FailureBase[T, V]])

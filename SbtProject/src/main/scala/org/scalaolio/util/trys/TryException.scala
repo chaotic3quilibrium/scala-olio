@@ -21,9 +21,6 @@ import org.scalaolio.util.trys.template.{FailureBase, SuccessBase, TryBase, TryO
   * @since 2.11
   */
 object TryException extends TryObjectBase[Exception] {
-  override val classT =
-    new Exception().getClass
-
   def successT[V]: V => TryException[V] =
     SuccessException(_)
 
