@@ -822,7 +822,7 @@ trait ValueTyped {
               val tokens =
                 keyAndValue.split(keyValueSeparator).toList
               if (tokens.size == 2)
-                Success(Some(tokens.head, tokens(2)))
+                Success(Some((tokens.head, tokens(1))))
               else
                 Failure(new IllegalStateException(s"unable to use keyValueSeparator [$keyValueSeparator] to regex split keyAndValue [$keyAndValue]"))
             }

@@ -19,18 +19,18 @@ import scala.language.implicitConversions
 package object String_ {
   def indexesOf(source: String, target: String, index: Int = 0, withinOverlaps: Boolean = false): List[Int] = {
     @tailrec
-    def recursive(indexTarget: Int, accumulator: List[Int]): List[Int] = {
+    def recursive(indexTarget: Int, accumulator: List[Int] = Nil): List[Int] = {
       val position = source.indexOf(target, indexTarget)
       if (position == -1) accumulator
       else
         recursive(position + (if (withinOverlaps) 1 else target.length), position :: accumulator)
     }
-    recursive(index, Nil).reverse
+    recursive(index).reverse
   }
 
   def splitLiterally(string: String, separator: String): List[String] = {
     @tailrec
-    def recursive(remaining: String, accumulator: List[String]): List[String] = {
+    def recursive(remaining: String, accumulator: List[String] = Nil): List[String] = {
       if (remaining.isEmpty)
         accumulator
       if (separator.isEmpty)
@@ -44,13 +44,17 @@ package object String_ {
         }
       }
     }
-    recursive(string, Nil).reverse
+    recursive(string).reverse
   }
 
   def spanSansSeparator(string: String, separator: String): (String, String) = {
-    val index = string.indexOf(separator)
-    if (index > -1)
-      (string.take(index), string.drop(index + separator.length))
+    if (separator.nonEmpty) {
+      val index = string.indexOf(separator)
+      if (index > -1)
+        (string.take(index), string.drop(index + separator.length))
+      else
+        (string, "")
+    }
     else
       (string, "")
   }

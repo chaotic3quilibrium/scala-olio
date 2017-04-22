@@ -14,27 +14,78 @@
 package org.scalaolio.collection.immutable
 
 package object List_ {
-  def filterDupes[A](items: List[A]): (List[A], List[(A, Int)]) = {
-    def recursive(remaining: List[A], index: Int, accumulator: (List[A], List[(A, Int)])): (List[A], List[(A, Int)]) = {
+  //For the filterDupes* functions, used the L and Ec terms from here:
+  //  http://docs.scala-lang.org/overviews/collections/performance-characteristics.html
+  def filterDupesL[A](items: List[A]): (List[A], List[(A, Int)]) = {
+    def recursive(
+        remaining: List[A]
+      , index: Int =
+          0
+      , accumulator: (List[A], List[(A, Int)]) =
+          (Nil, Nil)): (List[A], List[(A, Int)]
+    ) =
       if (remaining.isEmpty)
         accumulator
       else
         recursive(
             remaining.tail
           , index + 1
-          , if (accumulator._1.contains(remaining.head))
-              (accumulator._1, (remaining.head, index) :: accumulator._2)
-            else
-              (remaining.head :: accumulator._1, accumulator._2)
+          , if (accumulator._1.contains(remaining.head)) //contains is linear
+            (accumulator._1, (remaining.head, index) :: accumulator._2)
+          else
+            (remaining.head :: accumulator._1, accumulator._2)
         )
-    }
-    val (distinct, dupes) = recursive(items, 0, (Nil, Nil))
+    val (distinct, dupes) = recursive(items)
+    (distinct.reverse, dupes.reverse)
+  }
+
+  def filterDupesEc[A](items: List[A]): (List[A], List[(A, Int)]) = {
+    def recursive(
+        remaining: List[A]
+      , index: Int =
+          0
+      , seenAs: Set[A] =
+          Set()
+      , accumulator: (List[A], List[(A, Int)]) =
+          (Nil, Nil)): (List[A], List[(A, Int)]
+    ) =
+      if (remaining.isEmpty)
+        accumulator
+      else {
+        val (isInSeenAs, seenAsNext) = {
+          val isInSeenA =
+            seenAs.contains(remaining.head) //contains is effectively constant
+          (
+              isInSeenA
+            , if (!isInSeenA)
+                seenAs + remaining.head
+              else
+                seenAs
+          )
+        }
+        recursive(
+            remaining.tail
+          , index + 1
+          , seenAsNext
+          , if (isInSeenAs)
+            (accumulator._1, (remaining.head, index) :: accumulator._2)
+          else
+            (remaining.head :: accumulator._1, accumulator._2)
+        )
+      }
+    val (distinct, dupes) = recursive(items)
     (distinct.reverse, dupes.reverse)
   }
 
   implicit class RichList[A](val value: List[A]) extends AnyVal {
+    def filterDupesL: (List[A], List[(A, Int)]) =
+      List_.filterDupesL(value)
+
+    def filterDupesEc: (List[A], List[(A, Int)]) =
+      List_.filterDupesEc(value)
+
     def filterDupes: (List[A], List[(A, Int)]) =
-      List_.filterDupes(value)
+      filterDupesEc
   }
 }
 /*

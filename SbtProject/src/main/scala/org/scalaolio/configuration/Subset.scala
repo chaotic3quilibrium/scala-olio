@@ -113,6 +113,8 @@ class Subset private[Subset] (
                 }
               else
                 (Map[String, String](), keysRemainingAfterAbsolute)
+            //TODO: must change move this to some form of logging
+            println(s"Subset.tryOptionValueWedgeNonEmpty.Some(templateProfile).keysRemainingAfterException=Set(${"\"" + keysRemainingAfterException.toList.sorted.mkString("\",\"") + "\""})")
             val valueByKey = (
                  valueByKeyRelative
               ++ valueByKeyAbsolute

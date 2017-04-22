@@ -259,7 +259,7 @@ package object json4s_ {
       }
 
     def toKeyAndValues(keyPrefix: String = "", pathSeparator: String = "."): Try[List[(String, String)]] = {
-      def recursive(jValue2: JValue, keyPrefix2: String = "", key: String): Try[List[(String, String)]] = {
+      def recursive(jValue2: JValue, keyPrefix2: String, key: String = ""): Try[List[(String, String)]] = {
         def processListOfTuple2(keyNew: String, tuple2s: List[(JValue, String)]): Try[List[(String, String)]] = {
           val tryStringAndStrings =
             tuple2s.map(tuple2 => recursive(tuple2._1, keyNew, tuple2._2))
@@ -291,7 +291,7 @@ package object json4s_ {
         }
       }
       if ((jValue.isInstanceOf[JObject] || jValue.isInstanceOf[JArray]) || keyPrefix.nonEmpty)
-        recursive(jValue, keyPrefix, "")
+        recursive(jValue, keyPrefix)
       else
         Failure(new IllegalArgumentException("when jValue is not one of either JObject or JArray, keyPrefix must be nonEmpty"))
     }
