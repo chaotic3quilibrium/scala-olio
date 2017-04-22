@@ -116,7 +116,7 @@ class NameSpec extends FlatSpec with Matchers {
     source.getClass.objects should be (List("NameSpec", "D", "E", "F"))
     source.getClass.packages should be (Some(List("org", "scalaolio", "java", "lang", "Class_")))
     source.getClass.toString should be ("class org.scalaolio.java.lang.Class_.NameSpec$D$E$F$")
-    source.getClass.toStringUnmasked should be (source.getClass.toString)
+    source.getClass.toStringUnmasked should be ("Name(class org.scalaolio.java.lang.Class_.NameSpec$D$E$F$,List(NameSpec, D, E, F),Some(List(org, scalaolio, java, lang, Class_)))")
     source.getClass.isJavaArray should be (false)
     source.getClass.simpleName should be ("F")
     source.getClass.isScalaObject should be (true)

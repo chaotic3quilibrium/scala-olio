@@ -71,8 +71,10 @@ trait SuccessBase[T <: Throwable, +V] extends TryBase[T, V] {
     this.asInstanceOf[TryBase[T, W]]
 
 
-  def foreach[W](f: V => W): Unit =
+  def foreach[W](f: V => W): Unit = {
     f(v)
+    ()
+  }
 }
 /*
 This Scala file is free software: you can redistribute it and/or

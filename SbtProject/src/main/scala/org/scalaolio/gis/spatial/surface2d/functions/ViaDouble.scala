@@ -14,10 +14,11 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.gis.spatial.surface2d.functions
 
+import org.scalaolio.gis.spatial.surface2d.functions.ViaDouble.Vincenty.Ellipsoid.Decoration
+
 import scala.annotation.tailrec
 import scala.reflect.runtime.universe.{TypeTag, typeTag}
 import scala.util.{Failure, Success, Try}
-
 import org.scalaolio.util.EnumerationDecorated
 import org.scalaolio.util.FailedPreconditionsException
 import org.scalaolio.util.FailedPreconditionsException.{FailedPrecondition, FailedPreconditionObject}
@@ -392,7 +393,7 @@ object ViaDouble {
           ): Try[() => CalculationProfile] =
             CalculationProfile.tryApplyFactory(ellipsoidNew, iterationDefaultForCalculateStartPointDistanceAndBearingNew, iterationDefaultForCalculateCoordinatePairNew, lambdaDeltaEpsilonNew, sinSigmaEpsilonNew)
 
-          def tuple =
+          def tuple: (Decoration, Int, Int, Double, Double) =
             (ellipsoid, iterationDefaultForCalculateStartPointDistanceAndBearing, iterationDefaultForCalculateCoordinatePair, lambdaDeltaEpsilon, sinSigmaEpsilon)
         }
       }
@@ -608,7 +609,7 @@ object ViaDouble {
         else
           coordinate1
       val (tanU1, cosU1, sinU1) =
-        calcTanCosSin(coordinate1._2, calculationProfile)
+        calcTanCosSin(coordinate1Resolved._2, calculationProfile)
       val sinAlpha1 = Math.sin(bearingInitial)
       val cosAlpha1 = Math.cos(bearingInitial)
       val sigma1 = Math.atan2(tanU1, cosAlpha1)
@@ -675,10 +676,10 @@ object ViaDouble {
               )
           )
           val longitude2 =
-            ((coordinate1._1 + lL + (3.0d * Math.PI)) % (2.0d * Math.PI)) - Math.PI
+            ((coordinate1Resolved._1 + lL + (3.0d * Math.PI)) % (2.0d * Math.PI)) - Math.PI
           val coordinate2 =
             (longitude2, latitude2)
-          calculateGreatCircleDistanceInitialBearingFinalBearing((coordinate1, coordinate2)).flatMap(
+          calculateGreatCircleDistanceInitialBearingFinalBearing((coordinate1Resolved, coordinate2)).flatMap(
             distanceAndInitialBearingAndFinalBearing =>
               Success((coordinate2, distanceAndInitialBearingAndFinalBearing._3))
           )

@@ -66,7 +66,7 @@ object URLConnection_ {
       uRLConnection: URLConnection
     , bufferSize: Int = defaultBufferSize
   ): Try[String] =
-    AutoCloseable_.using(uRLConnection.getInputStream) {
+    AutoCloseable_.using(() => uRLConnection.getInputStream) {
       inputStream =>
         AutoCloseable_.using(() => new InputStreamReader(inputStream)) {
           inputStreamReader =>
@@ -81,7 +81,7 @@ object URLConnection_ {
       uRLConnection: URLConnection
     , bufferSize: Int = defaultBufferSize
   ): Try[List[String]] =
-    AutoCloseable_.using(uRLConnection.getInputStream) {
+    AutoCloseable_.using(() => uRLConnection.getInputStream) {
       inputStream =>
         AutoCloseable_.using(() => new InputStreamReader(inputStream)) {
           inputStreamReader =>
@@ -97,7 +97,7 @@ object URLConnection_ {
     , content: String
     , bufferSize: Int = defaultBufferSize
   ): Try[Unit] =
-    AutoCloseable_.using(uRLConnection.getOutputStream) {
+    AutoCloseable_.using(() => uRLConnection.getOutputStream) {
       outputStream =>
         AutoCloseable_.using(() => new OutputStreamWriter(outputStream)) {
           outputStreamWriter =>
@@ -117,7 +117,7 @@ object URLConnection_ {
     , lines: List[String]
     , bufferSize: Int = defaultBufferSize
   ): Try[Unit] =
-    AutoCloseable_.using(uRLConnection.getOutputStream) {
+    AutoCloseable_.using(() => uRLConnection.getOutputStream) {
       outputStream =>
         AutoCloseable_.using(() => new OutputStreamWriter(outputStream)) {
           outputStreamWriter =>
