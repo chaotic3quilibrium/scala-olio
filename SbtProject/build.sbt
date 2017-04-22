@@ -1,21 +1,20 @@
 name := "ScalaOlio"
 
-version := "1.0"
+version := "1.0.0"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.10"
 
-libraryDependencies += "org.scala-lang" % "scala-reflect"       % "2.11.7"
+val jacksonVersion = "2.8.8"
 
-libraryDependencies += "org.scalatest"  % "scalatest_2.11"      % "2.1.7" % "test"
-
-libraryDependencies += "joda-time"      % "joda-time"           % "2.3"
-
-libraryDependencies += "org.joda"       % "joda-convert"        % "1.5"
-
-libraryDependencies += "org.clapper"    % "grizzled-slf4j_2.11" % "1.0.2"
-
-libraryDependencies += "org.slf4j"      % "slf4j-simple"        % "1.7.7"
-
-libraryDependencies += "org.json4s"     % "json4s-native_2.11"  % "3.2.11"
-
-libraryDependencies += "com.squants"    % "squants_2.11"        % "0.5.3"
+libraryDependencies ++= Seq(
+  "org.scala-lang"             % "scala-reflect"                 % "2.11.10",
+  "org.scalatest"              % "scalatest_2.11"                % "3.0.1"          % "test",
+  "joda-time"                  % "joda-time"                     % "2.9.9",
+  "org.joda"                   % "joda-convert"                  % "1.8.1",
+  "org.clapper"                % "grizzled-slf4j_2.11"           % "1.3.0",
+  "org.slf4j"                  % "slf4j-simple"                  % "1.7.25",
+  "org.json4s"                 % "json4s-jackson_2.11"           % "3.5.1",
+  "org.typelevel"              % "squants_2.11"                  % "1.2.0",
+  "com.fasterxml.jackson.core" % "jackson-databind"              % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-core"                  % jacksonVersion,
+  "com.fasterxml.jackson.core" % "jackson-annotations"           % jacksonVersion)
