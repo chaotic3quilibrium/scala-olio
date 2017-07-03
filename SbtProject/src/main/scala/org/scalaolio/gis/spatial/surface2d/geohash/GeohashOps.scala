@@ -249,8 +249,8 @@ object GeohashOps {
       if (temp < Longitude.minimum)
         Longitude(Longitude.maximum + (longitudeOffset / 2.0d))
       else
-        if (temp >= Longitude.maximum)
-          Longitude(Longitude.maximum + (longitudeOffset / 2.0d))
+        if (temp > Longitude.maximum)
+          Longitude(Longitude.minimum + (longitudeOffset / 2.0d))
         else
           Longitude(temp)
     }

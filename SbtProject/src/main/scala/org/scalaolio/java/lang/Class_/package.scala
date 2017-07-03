@@ -15,6 +15,7 @@
 \* ---------.---------.---------.---------.---------.---------.-------- */
 package org.scalaolio.java.lang
 
+import scala.language.existentials
 import scala.language.implicitConversions
 
 /** Serves to ease idiomatic Scala interactions with java.lang.Class.
@@ -30,7 +31,7 @@ package object Class_ {
    *  to using other more reliable methods of Class.
    */
   object Name {
-    override def toString = apply(this.getClass).simpleName
+    override def toString: String = apply(this.getClass).simpleName
 
     /** Holds all instantiations of Name indexed by java.lang.Class.
      */

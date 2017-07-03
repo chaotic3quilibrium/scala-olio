@@ -87,8 +87,8 @@ object Latitude extends ((Angle) => Latitude) {
 
   def clientValidatePreconditions(angle: Angle): List[FailedPrecondition] =
     List(
-      if (!((minimum <= angle) && (angle < maximum)))
-        Some(FailedPreconditionMustBeWithinValidRange(s"angle.toDegrees [${angle.toDegrees}] must be greater than or equal to minimum.toDegrees [${minimum.toDegrees}] and less than maximum [${maximum.toDegrees}]"))
+      if (!((minimum <= angle) && (angle <= maximum)))
+        Some(FailedPreconditionMustBeWithinValidRange(s"angle.toDegrees [${angle.toDegrees}] must be greater than or equal to minimum.toDegrees [${minimum.toDegrees}] and less than or equal to maximum [${maximum.toDegrees}]"))
       else
         None
     ).flatten
