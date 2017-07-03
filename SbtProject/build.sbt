@@ -1,8 +1,23 @@
 name := "ScalaOlio"
 
-version := "1.0.0"
+version := "1.0.1"
 
 scalaVersion := "2.11.10"
+
+scalacOptions ++=
+  Seq(
+    "-target:jvm-1.7",
+    "-encoding", "UTF-8",
+    "-unchecked",
+    "-deprecation",
+    "-feature",
+    "-Xfuture",
+    "-Yno-adapted-args",
+    "-Ywarn-dead-code",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-value-discard",
+    "-Ywarn-unused"
+  )
 
 val jacksonVersion = "2.8.8"
 
