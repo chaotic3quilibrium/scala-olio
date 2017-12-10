@@ -285,6 +285,7 @@ package object json4s_ {
                   processListOfTuple2(keyNew, jArray.arr.zipWithIndex.map(jValueAndInt => (jValueAndInt._1, jValueAndInt._2.toString)))
                 else
                   Success(Nil)
+              case JNull => Success(Nil)
               case _ =>
                 Failure(new IllegalStateException(s"should NEVER get here - missed JValue type at path [$keyPrefix2]"))
             }
